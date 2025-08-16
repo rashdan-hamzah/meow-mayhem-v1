@@ -98,7 +98,7 @@
 
 <script>
 (() => {
-  // ======== CONFIG ========
+
   const CONFIG = {
     targetScore: 30, // Increased from 10 to 30
     maxPlayers: 2, // Change to 3, 4, or 5 if you want more local players
@@ -210,7 +210,7 @@
     }
   ];
 
-  // ======== SETUP ========
+
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const catImagesContainer = document.getElementById('catImagesContainer');
@@ -231,12 +231,12 @@
   resize();
   window.addEventListener('resize', resize);
 
-  // ======== INPUT ========
+  
   const keys = new Set();
   window.addEventListener('keydown', (e) => { keys.add(e.key); if (e.key === 'Enter') start(); if ([' '].includes(e.key)) e.preventDefault(); });
   window.addEventListener('keyup', (e) => keys.delete(e.key));
 
-  // ======== UTIL ========
+
   const rnd = (a,b)=> a + Math.random()*(b-a);
   const clamp = (v,a,b)=> Math.max(a, Math.min(b,v));
   function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
@@ -248,7 +248,7 @@
     if (entity.y > H - r) { entity.y = H - r; entity.vy = -Math.abs(entity.vy)*0.6; }
   }
 
-  // ======== ENTITIES ========
+
   const players = [];
   const treats = [];
   const roombas = [];
@@ -567,7 +567,7 @@
     createExplosion(player.x, player.y, player.color, 20);
   }
 
-  // ======== GAME LOOP ========
+ 
   let running = false;
   let last = performance.now();
   let acc = 0;
@@ -1400,7 +1400,7 @@
     render();
   }
 
-  // ======== RENDER ========
+
   function renderBG(){
     // Gradient-ish grid
     ctx.fillStyle = '#10131a';
@@ -1613,7 +1613,7 @@
     }
   }
 
-  // ======== BOOT ========
+ 
   // Preload all cat GIF images
   function preloadCatImages() {
     CAT_GIFS.forEach(url => {
@@ -1631,4 +1631,4 @@
 </script>
 </body>
 </html>
-  // ========
+
