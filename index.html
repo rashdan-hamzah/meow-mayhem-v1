@@ -60,31 +60,40 @@
     object-fit: cover;
     border-radius: 50%;
   }
+  
+  /* Game container for shake effect */
+  #game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+  }
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
-<div id="ui">
-  <div class="topbar">
-    <div class="pill">😼 <strong>Meow Mayhem</strong></div>
-    <div id="scores" class="score"></div>
-    <div class="pill" id="status"></div>
+<div id="game-container">
+  <canvas id="game"></canvas>
+  <div id="ui">
+    <div class="topbar">
+      <div class="pill">😼 <strong>Meow Mayhem</strong></div>
+      <div id="scores" class="score"></div>
+      <div class="pill" id="status"></div>
+    </div>
+    <div id="center" class="ctr">
+      <div style="font-size:42px; font-weight:900; margin-bottom:10px;">Meow Mayhem 😼</div>
+      <div style="font-size:18px; opacity:.9; margin-bottom:20px;">Collect 🐟. Bonk friends. Avoid chaos. First to <span id="targetPts">30</span> wins.</div>
+      <div class="btn" id="startBtn">Press ENTER or Click to Start</div>
+      <div class="hint">P1: WASD + F • P2: Arrows + / • (Enable up to 5 players in code)</div>
+    </div>
+    <div id="powerups" class="powerups"></div>
+    <div id="timer" class="timer">Chaos in: 30s</div>
+    <div class="bottom">Pause: <b>P</b> • Restart: <b>R</b></div>
   </div>
-  <div id="center" class="ctr">
-    <div style="font-size:42px; font-weight:900; margin-bottom:10px;">Meow Mayhem 😼</div>
-    <div style="font-size:18px; opacity:.9; margin-bottom:20px;">Collect 🐟. Bonk friends. Avoid chaos. First to <span id="targetPts">30</span> wins.</div>
-    <div class="btn" id="startBtn">Press ENTER or Click to Start</div>
-    <div class="hint">P1: WASD + F • P2: Arrows + / • (Enable up to 5 players in code)</div>
-  </div>
-  <div id="powerups" class="powerups"></div>
-  <div id="timer" class="timer">Chaos in: 30s</div>
-  <div class="bottom">Pause: <b>P</b> • Restart: <b>R</b></div>
-</div>
-<div id="nightMode" class="night-mode" style="display:none;"></div>
-<div id="warning" class="warning" style="display:none;"></div>
+  <div id="nightMode" class="night-mode" style="display:none;"></div>
+  <div id="warning" class="warning" style="display:none;"></div>
 
-<!-- Cat images container (will be dynamically populated) -->
-<div id="catImagesContainer" style="position:absolute; top:0; left:0; pointer-events:none;"></div>
+  <!-- Cat images container (will be dynamically populated) -->
+  <div id="catImagesContainer" style="position:absolute; top:0; left:0; pointer-events:none;"></div>
+</div>
 
 <script>
 (() => {
@@ -116,6 +125,7 @@
     weatherCooldown: 5000, // Time between weather events (reduced to 5 seconds)
     secretSauceInterval: 30000, // Chaos mode every 30 seconds
     secretSauceDuration: 8000, // How long chaos mode lasts (8 seconds)
+    shakeIntensity: 5, // Maximum screen shake offset in pixels
   };
 
   // Cat GIFs for the players
@@ -203,6 +213,7 @@
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const catImagesContainer = document.getElementById('catImagesContainer');
+  const gameContainer = document.getElementById('game-container');
   let W = 0, H = 0;
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   function resize() {
@@ -244,6 +255,8 @@
   const meowParticles = []; // Particles array
   const powerUps = []; // Power-ups array
   let doge = null;
+  // ADD: Array to hold second doge during chaos mode
+  const chaosDoges = [];
   const lasers = []; // Array of lasers
   let tornado = null;
   let currentWeather = null;
@@ -251,6 +264,10 @@
   let nextSecretSauce = 0;
   let secretSauceActive = false;
   let secretSauceCountdown = 30;
+  
+  // ADD: Screen shake variables
+  let shakeTime = 0;
+  let shakeIntensity = 0;
 
   // Player controls map
   const CONTROL_SETS = [
@@ -305,6 +322,26 @@
         }
       }
     });
+  }
+  
+  // ADD: Screen shake function
+  function applyScreenShake() {
+    if (shakeTime > 0) {
+      const shakeX = Math.random() * shakeIntensity * 2 - shakeIntensity;
+      const shakeY = Math.random() * shakeIntensity * 2 - shakeIntensity;
+      gameContainer.style.transform = `translate(${shakeX}px, ${shakeY}px)`;
+      shakeTime--;
+      
+      if (shakeTime <= 0) {
+        gameContainer.style.transform = 'translate(0, 0)';
+      }
+    }
+  }
+  
+  // ADD: Start screen shake
+  function startScreenShake(duration, intensity) {
+    shakeTime = duration;
+    shakeIntensity = intensity;
   }
 
   function spawnPlayers(n=CONFIG.maxPlayers){
@@ -396,6 +433,26 @@
       eating: null, // Which player is being eaten
       eatingStartTime: 0 // When eating started
     };
+  }
+  
+  // ADD: Function to spawn a second doge for chaos mode
+  function spawnChaosDoge() {
+    const side = Math.random() < 0.5 ? 'T' : 'B';
+    const chaosDoge = {
+      x: rnd(60, W-60),
+      y: side === 'T' ? -60 : H+60,
+      r: 28, // Slightly bigger
+      vx: 0,
+      vy: side === 'T' ? rnd(2.0, 2.5) : rnd(-2.5, -2.0),
+      emoji: '🐺', // Wolf emoji for chaos doge
+      ttl: CONFIG.secretSauceDuration, // Will only exist during chaos mode
+      target: null,
+      eating: null,
+      eatingStartTime: 0,
+      isChaos: true
+    };
+    
+    chaosDoges.push(chaosDoge);
   }
 
   function spawnLasers(){
@@ -535,6 +592,7 @@
     meowParticles.length=0; // Clear particles
     powerUps.length=0; // Clear power-ups
     doge = null;
+    chaosDoges.length=0; // Clear chaos doges
     tornado = null;
     currentWeather = null;
     if (CONFIG.laserActive) spawnLasers();
@@ -553,6 +611,10 @@
     updateStatus('Collect fish. First to ' + CONFIG.targetScore + '!');
     document.getElementById('powerups').innerHTML = '';
     updateChaosTimer();
+    
+    // Reset screen shake
+    shakeTime = 0;
+    gameContainer.style.transform = 'translate(0, 0)';
   }
 
   function updateStatus(s){ document.getElementById('status').textContent = s; }
@@ -836,10 +898,13 @@
       }
     }
   }
-
+  
+  // UPDATE: Handle both the normal doge and chaos doges
   function updateDoge(){
     const now = performance.now();
     if (!doge && now >= nextDogeAt){ nextDogeAt = now + CONFIG.dogeEveryMs; spawnDoge(); }
+    
+    // Process the main doge
     if (doge){
       // If doge is eating a player
       if (doge.eating) {
@@ -939,6 +1004,109 @@
       
       // Despawn if TTL expired
       if (doge.ttl <= 0 || doge.x < -80 || doge.x > W+80 || doge.y < -80 || doge.y > H+80) doge = null;
+    }
+    
+    // ADD: Process all chaos doges
+    for (let i = chaosDoges.length - 1; i >= 0; i--) {
+      const chaosDoge = chaosDoges[i];
+      
+      // If chaos doge is eating a player
+      if (chaosDoge.eating) {
+        const eatingDuration = now - chaosDoge.eatingStartTime;
+        
+        // When done eating, release player (they will respawn)
+        if (eatingDuration >= CONFIG.dogeEatTimeMs) {
+          chaosDoge.eating = null;
+        }
+      } 
+      // If chaos doge is not currently eating anyone, find a player to chase
+      else {
+        // Find closest player to chase
+        let closestDist = Infinity;
+        let closestPlayer = null;
+        for (const p of players) {
+          // Skip players already being eaten
+          if (p.beingEaten) continue;
+          
+          const d = dist(chaosDoge, p);
+          if (d < closestDist) {
+            closestDist = d;
+            closestPlayer = p;
+          }
+        }
+        
+        // Chase closest player
+        if (closestPlayer) {
+          const dx = closestPlayer.x - chaosDoge.x;
+          const dy = closestPlayer.y - chaosDoge.y;
+          const d = Math.hypot(dx, dy) || 1;
+          chaosDoge.vx = (dx/d) * CONFIG.dogeSpeed * 1.2; // Slightly faster than normal doge
+          chaosDoge.vy = (dy/d) * CONFIG.dogeSpeed * 1.2;
+          
+          // Check if chaos doge catches a player to eat them
+          for (const p of players) {
+            // Skip players already being eaten
+            if (p.beingEaten) continue;
+            
+            if (circleCollide(p.x, p.y, p.r, chaosDoge.x, chaosDoge.y, chaosDoge.r)) {
+              // Start eating player
+              chaosDoge.eating = p;
+              chaosDoge.eatingStartTime = now;
+              
+              // Mark player as being eaten
+              p.beingEaten = true;
+              p.eatenUntil = now + CONFIG.dogeEatTimeMs;
+              
+              // Set respawn point (random position)
+              p.respawnPoint = {
+                x: rnd(100, W-100),
+                y: rnd(100, H-100)
+              };
+              
+              // Eating effect particles
+              createExplosion(p.x, p.y, "#ff6600", 25);
+              
+              // Player loses more treats when eaten by chaos doge
+              if (p.score > 0) {
+                const lostTreats = Math.min(p.score, 5); // More than regular doge
+                p.score -= lostTreats;
+                updateScoreUI();
+                
+                // Spawn lost treats
+                for (let i = 0; i < lostTreats; i++) {
+                  const t = { 
+                    x: chaosDoge.x + rnd(-40, 40),
+                    y: chaosDoge.y + rnd(-40, 40),
+                    r: CONFIG.treatRadius, 
+                    emoji:'🐟',
+                    vx: rnd(-2, 2),
+                    vy: rnd(-2, 2)
+                  };
+                  treats.push(t);
+                }
+              }
+              
+              updateStatus(`${p.name} was devoured by Chaos Wolf!`);
+              break;
+            }
+          }
+        }
+      }
+      
+      // Update chaos doge position
+      if (!chaosDoge.eating) {
+        chaosDoge.x += chaosDoge.vx;
+        chaosDoge.y += chaosDoge.vy;
+      }
+      
+      chaosDoge.ttl -= 16;
+      
+      // Despawn if TTL expired or chaos mode is over
+      if (chaosDoge.ttl <= 0 || !secretSauceActive || 
+          chaosDoge.x < -80 || chaosDoge.x > W+80 || 
+          chaosDoge.y < -80 || chaosDoge.y > H+80) {
+        chaosDoges.splice(i, 1);
+      }
     }
   }
 
@@ -1147,6 +1315,7 @@
     }
   }
   
+  // UPDATE: Add screen shake and second doge to chaos mode
   function updateSecretSauce() {
     const now = performance.now();
     
@@ -1176,10 +1345,22 @@
       updateStatus('⚠️ CHAOS MODE ACTIVATED! ⚠️');
       document.getElementById('timer').textContent = 'CHAOS MODE!';
       
+      // ADD: Start screen shake for chaos mode
+      startScreenShake(CONFIG.secretSauceDuration / 16, CONFIG.shakeIntensity);
+      
       // Spawn additional chaos
       for (let i = 0; i < 3; i++) spawnPowerUp();
       if (Math.random() < 0.5) spawnDoge();
+      
+      // ADD: Spawn a second doge (wolf) for chaos mode
+      spawnChaosDoge();
+      
       for (let i = 0; i < 3; i++) spawnTreat();
+    }
+    
+    // ADD: Continue screen shake during chaos mode with random intervals
+    if (secretSauceActive && shakeTime <= 0 && Math.random() < 0.05) {
+      startScreenShake(20 + Math.random() * 30, CONFIG.shakeIntensity * (0.5 + Math.random() * 0.5));
     }
   }
 
@@ -1195,6 +1376,9 @@
     // Update UI elements that don't depend on physics tick
     updatePowerUpsUI();
     updateCatImagePositions();
+    
+        // ADD: Apply screen shake effect
+    applyScreenShake();
 
     while (acc >= dt){
       if (!paused && !winner){
@@ -1338,6 +1522,39 @@
         ctx.fillText('🐶', doge.x, doge.y);
       }
     }
+    
+    // ADD: Render chaos doges (wolves)
+    for (const chaosDoge of chaosDoges) {
+      // Red glow effect for chaos doges
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      drawCircle(chaosDoge.x, chaosDoge.y, chaosDoge.r+8, '#ff0000', null);
+      ctx.restore();
+      
+      // Draw differently if eating a player
+      if (chaosDoge.eating) {
+        // Larger mouth effect
+        drawCircle(chaosDoge.x, chaosDoge.y, chaosDoge.r + 6, '#3a2f2b', '#5a423a');
+        
+        // Blood effect
+        ctx.save();
+        ctx.globalAlpha = 0.7;
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.arc(chaosDoge.x, chaosDoge.y, chaosDoge.r - 5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+        
+        ctx.font = '26px system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🐺', chaosDoge.x, chaosDoge.y);
+      } else {
+        drawCircle(chaosDoge.x, chaosDoge.y, chaosDoge.r, '#4a1f1f', '#5a3a3a');
+        ctx.font = '22px system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🐺', chaosDoge.x, chaosDoge.y);
+      }
+    }
 
     // Lasers
     for (const laser of lasers) {
@@ -1413,3 +1630,4 @@
 </script>
 </body>
 </html>
+  // ========
