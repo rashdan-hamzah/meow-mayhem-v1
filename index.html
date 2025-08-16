@@ -321,82 +321,24 @@
       
       console.log(`Playing sound: ${soundName}`);
       
-      // If the sound is already playing, create a new audio element for overlapping sounds
-      if (!options.overlap && !sound.paused && sound.currentTime > 0) {
-        return;
-      }
-      
-      if (options.overlap) {
-        // Create a temporary clone for overlapping sounds
-        const tempSound = sound.cloneNode();
-        tempSound.volume = CONFIG.masterVolume;
-        tempSound.play().catch(e => console.warn('Error playing sound:', e));
-        // Remove after playing to avoid memory leaks
-        tempSound.onended = () => tempSound.remove();
-      } else {
-        // Normal playback
-        sound.currentTime = 0;
-        sound.play().catch(e => console.warn('Error playing sound:', e));
-      }
+      // Reset the sound if it's already playing
+      sound.pause();
+      sound.currentTime = 0;
+      sound.play().catch(e => console.warn('Error playing sound:', e));
     },
     
-    // Play a sound for a specific duration (for animations)
+    // Play a sound for a specific duration
     playForDuration(soundName, duration, options = {}) {
       if (!CONFIG.soundEnabled) return;
       
       const sound = this.sounds[soundName];
-      if (!sound) {
-        console.warn(`Sound "${soundName}" not found`);
-        return;
-      }
+      if (!sound) return;
       
       console.log(`Playing sound ${soundName} for ${duration}ms`);
       
-      // Create a temporary clone for the duration-based sound
-      const tempSound = sound.cloneNode();
-      tempSound.volume = CONFIG.masterVolume;
-      
-      // Play the sound
-      tempSound.play().catch(e => console.warn('Error playing sound:', e));
-      
-      // Set up a timer to fade out and stop the sound after the specified duration
-      if (duration) {
-        const fadeTime = Math.min(1000, duration * 0.2); // 20% of duration for fade out, max 1 second
-        
-        // Set timeout to start fade out
-        setTimeout(() => {
-          // Fade out volume gradually
-          let startVolume = tempSound.volume;
-          const fadeInterval = setInterval(() => {
-            if (tempSound.volume > 0.05) {
-              tempSound.volume -= 0.05;
-            } else {
-              clearInterval(fadeInterval);
-              tempSound.pause();
-              tempSound.remove(); // Clean up the element
-            }
-          }, fadeTime / 20);
-        }, duration - fadeTime);
-        
-        // Backup cleanup after full duration
-        setTimeout(() => {
-          tempSound.pause();
-          tempSound.remove();
-        }, duration + 100);
-      }
-    },
-    
-    loop(soundName) {
-      if (!CONFIG.soundEnabled) return;
-      
-      const sound = this.sounds[soundName];
-      if (!sound) {
-        console.warn(`Sound "${soundName}" not found`);
-        return;
-      }
-      
-      console.log(`Looping sound: ${soundName}`);
-      sound.loop = true;
+      // Reset the sound if it's already playing
+      sound.pause();
+      sound.currentTime = 0;
       sound.play().catch(e => console.warn('Error playing sound:', e));
     },
     
@@ -412,14 +354,6 @@
       Object.values(this.sounds).forEach(sound => {
         sound.pause();
         sound.currentTime = 0;
-      });
-    },
-    
-    adjustVolume(value) {
-      CONFIG.masterVolume = Math.max(0, Math.min(1, value));
-      
-      Object.values(this.sounds).forEach(sound => {
-        sound.volume = CONFIG.masterVolume;
       });
     }
   };
@@ -499,7 +433,7 @@
     { name: "Tornado", onStart: () => {
         spawnTornado();
         updateStatus("🌪️ Tornado Alert - Run for cover!");
-        // Removed tornado sound as requested
+        // No tornado sound as requested
       }, onEnd: () => {
         tornado = null;
         updateStatus("");
@@ -574,7 +508,6 @@
   let nextSecretSauce = 0;
   let secretSauceActive = false;
   let secretSauceCountdown = 30;
-  let roombaSound = false; // Track if roomba sound is playing
 
   // Player controls map
   const CONTROL_SETS = [
@@ -647,8 +580,8 @@
     
     victoryContainer.appendChild(victoryGif);
     
-    // Play victory sound for the duration of the animation
-    SoundManager.playForDuration('win', 5000);
+    // Play win sound
+    SoundManager.play('win');
     
     // Hide after animation is complete
     setTimeout(() => {
@@ -776,12 +709,6 @@
         emoji:'🧹',
       });
     }
-    
-    // Start roomba sound if not playing
-    if (!roombaSound && roombas.length > 0) {
-      roombaSound = true;
-      SoundManager.loop('roomba');
-    }
   }
 
   function spawnDoge(){
@@ -798,9 +725,6 @@
       eating: null,
       eatingStartTime: 0
     };
-    
-    // Play doge sound
-    SoundManager.play('doge');
   }
 
   // Add this new function for spawning a second doge during chaos mode
@@ -824,9 +748,6 @@
     
     // Add to the game world
     window.doges.push(secondDoge);
-    
-    // Play doge sound
-    SoundManager.play('doge');
   }
 
   function spawnLasers(){
@@ -980,11 +901,8 @@
       
       updateStatus('Game started! 🔊 Sound effects enabled.');
       
-      // Start roomba sound
-      if (roombas.length > 0) {
-        roombaSound = true;
-        SoundManager.loop('roomba');
-      }
+      // Play meow sound on game start
+      SoundManager.play('meow');
     }
   }
 
@@ -994,6 +912,9 @@
       SoundManager.init();
       window.soundInitialized = true;
     }
+    
+    // Stop all sounds
+    SoundManager.stopAll();
     
     spawnPlayers(CONFIG.maxPlayers);
     treats.length=0;
@@ -1031,15 +952,6 @@
     
     // Remove any crowns from previous winners
     document.querySelectorAll('.crown').forEach(crown => crown.remove());
-    
-    // Stop all sounds
-    SoundManager.stopAll();
-    
-    // Start roomba sound
-    if (roombas.length > 0) {
-      roombaSound = true;
-      SoundManager.loop('roomba');
-    }
   }
 
   function updateStatus(s){ document.getElementById('status').textContent = s; }
@@ -1090,7 +1002,10 @@
     if (e.key.toLowerCase()==='p'){ paused = !paused; updateStatus(paused?'Paused':''); }
     if (e.key.toLowerCase()==='r'){ resetGame(); }
   });
-  document.getElementById('startBtn').addEventListener('click', start);
+  document.getElementById('startBtn').addEventListener('click', () => {
+    SoundManager.play('meow'); // Play meow sound for button click
+    start();
+  });
 
   let winner = null;
 
@@ -1132,8 +1047,10 @@
       // Create particle effect
       createMeowParticles(p.x, p.y, p.color, p.superMeow ? CONFIG.meowParticles * 2 : CONFIG.meowParticles);
       
-      // Play appropriate meow sound
-      SoundManager.play(p.superMeow ? 'superMeow' : 'meow');
+      // Play appropriate meow sound - supermeow or normal meow
+      if (p.superMeow) {
+        SoundManager.play('superMeow');
+      }
     }
   }
 
@@ -1242,7 +1159,7 @@
           createExplosion(t.x, t.y, "#ffcc00", 10);
           
           // Play treat collection sound
-          SoundManager.play('treat', { overlap: true });
+          SoundManager.play('treat');
           break;
         }
       }
@@ -1301,6 +1218,9 @@
           // Apply opposite force to roomba
           r.vx -= (dx / d) * 2;
           r.vy -= (dy / d) * 2;
+          
+          // Play roomba collision sound
+          SoundManager.play('roomba');
         }
       }
     });
@@ -1392,6 +1312,8 @@
             }
             
             updateStatus(`${p.name} got eaten by doge!`);
+            
+            // Play doge sound ONLY when player gets eaten
             SoundManager.play('doge');
             break;
           }
@@ -1475,7 +1397,7 @@
                 updateScoreUI();
                 
                 // Spawn lost treats
-                                for (let j = 0; j < lostTreats; j++) {
+                for (let j = 0; j < lostTreats; j++) {
                   treats.push({
                     x: chaosDoge.x + rnd(-60, 60),
                     y: chaosDoge.y + rnd(-60, 60),
@@ -1488,6 +1410,8 @@
               }
               
               updateStatus(`CHAOS DOGE devoured ${p.name}!`);
+              
+              // Play doge sound when player gets eaten
               SoundManager.play('doge');
               break;
             }
@@ -1559,7 +1483,7 @@
           // Create particle effect
           createExplosion(l.x, l.y, "#ff0000", 15);
           
-          // Play laser sound
+          // Play laser sound when player gets hit by laser
           SoundManager.play('laser');
           
           updateStatus(`${p.name} got confused by a laser!`);
@@ -1568,7 +1492,7 @@
     });
   }
 
-  function updateMeowBursts(){
+    function updateMeowBursts(){
     const now = performance.now();
     
     // Update existing bursts
@@ -1802,8 +1726,8 @@
       updateStatus('⚠️ CHAOS MODE ACTIVATED! ⚠️');
       document.getElementById('timer').textContent = 'CHAOS MODE!';
       
-      // Play chaos sound for the duration of the mode
-      SoundManager.playForDuration('chaos', CONFIG.secretSauceDuration);
+      // Play chaos sound for chaos mode duration
+      SoundManager.play('chaos');
       
       // Spawn additional chaos
       for (let i = 0; i < 3; i++) spawnPowerUp();
@@ -1827,6 +1751,9 @@
       nextSecretSauce = now + CONFIG.secretSauceInterval;
       secretSauceCountdown = Math.floor(CONFIG.secretSauceInterval / 1000);
       updateChaosTimer();
+      
+      // Stop chaos sound when mode ends
+      SoundManager.stop('chaos');
     }
   }
 
