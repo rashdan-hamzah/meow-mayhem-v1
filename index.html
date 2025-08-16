@@ -60,97 +60,6 @@
     object-fit: cover;
     border-radius: 50%;
   }
-
-  /* Sound controls */
-  .sound-control {
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 100;
-    font-size: 20px;
-    pointer-events: auto;
-    transition: background-color 0.3s;
-  }
-  
-  .sound-control:hover {
-    background: rgba(255,255,255,0.2);
-  }
-
-  /* Victory Animation */
-  @keyframes flyAcross {
-    0% { transform: translate(-100%, -50%); }
-    100% { transform: translate(100vw, -50%); }
-  }
-
-  .victory-animation {
-    position: fixed;
-    top: 50%;
-    left: 0;
-    width: 200px;
-    height: 100px;
-    z-index: 20;
-    animation: flyAcross 3s linear;
-    pointer-events: none;
-  }
-
-  /* Confetti for victory */
-  .confetti {
-    position: fixed;
-    width: 10px;
-    height: 10px;
-    z-index: 19;
-    pointer-events: none;
-    animation: confetti-fall linear forwards;
-  }
-
-  @keyframes confetti-fall {
-    0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
-    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-  }
-
-  /* Crown for winner */
-  .crown {
-    position: absolute;
-    top: -25px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 24px;
-    z-index: 21;
-    filter: drop-shadow(0 0 5px gold);
-  }
-
-  /* Volume slider popup */
-  .volume-popup {
-    position: fixed;
-    top: 55px;
-    left: 10px;
-    background: rgba(40,40,50,0.9);
-    padding: 10px;
-    border-radius: 10px;
-    z-index: 101;
-    display: none;
-    width: 150px;
-  }
-
-  .volume-slider {
-    width: 100%;
-    cursor: pointer;
-  }
-
-  .volume-label {
-    display: block;
-    text-align: center;
-    margin-bottom: 5px;
-    font-size: 14px;
-  }
 </style>
 </head>
 <body>
@@ -174,28 +83,8 @@
 <div id="nightMode" class="night-mode" style="display:none;"></div>
 <div id="warning" class="warning" style="display:none;"></div>
 
-<!-- Sound control button -->
-<div class="sound-control" id="soundToggle">🔊</div>
-<div class="volume-popup" id="volumePopup">
-  <span class="volume-label">Volume: 100%</span>
-  <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100">
-</div>
-
 <!-- Cat images container (will be dynamically populated) -->
 <div id="catImagesContainer" style="position:absolute; top:0; left:0; pointer-events:none;"></div>
-
-<!-- Audio elements with GitHub-hosted sound files -->
-<audio id="meowSound" preload="auto" src="sounds/meow.mp3"></audio>
-<audio id="superMeowSound" preload="auto" src="sounds/supermeow.mp3"></audio>
-<audio id="rumbaSoundLoop" preload="auto" loop src="sounds/roomba.mp3"></audio>
-<audio id="dogeSound" preload="auto" src="sounds/doge.mp3"></audio>
-<audio id="treatSound" preload="auto" src="sounds/treat.mp3"></audio>
-<audio id="laserSound" preload="auto" src="sounds/laser.mp3"></audio>
-<audio id="chaosSound" preload="auto" src="sounds/chaos.mp3"></audio>
-<audio id="winSound" preload="auto" src="sounds/win.mp3"></audio>
-
-<!-- Victory animation container -->
-<div id="victoryContainer" style="display:none; position:fixed; inset:0; z-index:15; pointer-events:none;"></div>
 
 <script>
 (() => {
@@ -227,135 +116,6 @@
     weatherCooldown: 5000, // Time between weather events (reduced to 5 seconds)
     secretSauceInterval: 30000, // Chaos mode every 30 seconds
     secretSauceDuration: 8000, // How long chaos mode lasts (8 seconds)
-    soundEnabled: true, // Sound effects on by default
-    masterVolume: 1.0, // Master volume (0.0 to 1.0)
-  };
-
-  // ======== SOUND MANAGER ========
-  const SoundManager = {
-    sounds: {
-      meow: document.getElementById('meowSound'),
-      superMeow: document.getElementById('superMeowSound'),
-      roomba: document.getElementById('rumbaSoundLoop'),
-      doge: document.getElementById('dogeSound'),
-      treat: document.getElementById('treatSound'),
-      laser: document.getElementById('laserSound'),
-      chaos: document.getElementById('chaosSound'),
-      win: document.getElementById('winSound')
-    },
-
-    init() {
-      // Set up sound toggle
-      const soundToggle = document.getElementById('soundToggle');
-      const volumePopup = document.getElementById('volumePopup');
-      const volumeSlider = document.getElementById('volumeSlider');
-      const volumeLabel = document.querySelector('.volume-label');
-
-      // Toggle sound on/off
-      soundToggle.addEventListener('click', () => {
-        CONFIG.soundEnabled = !CONFIG.soundEnabled;
-        soundToggle.textContent = CONFIG.soundEnabled ? '🔊' : '🔇';
-        
-        if (CONFIG.soundEnabled) {
-          // Show volume popup when enabling sound
-          volumePopup.style.display = 'block';
-          setTimeout(() => {
-            volumePopup.style.display = 'none';
-          }, 5000); // Hide after 5 seconds
-        } else {
-          // Stop all sounds when muting
-          this.stopAll();
-          volumePopup.style.display = 'none';
-        }
-      });
-
-      // Long press to show volume slider
-      let pressTimer;
-      soundToggle.addEventListener('mousedown', () => {
-        pressTimer = setTimeout(() => {
-          volumePopup.style.display = volumePopup.style.display === 'block' ? 'none' : 'block';
-        }, 500);
-      });
-      soundToggle.addEventListener('mouseup', () => {
-        clearTimeout(pressTimer);
-      });
-      soundToggle.addEventListener('mouseleave', () => {
-        clearTimeout(pressTimer);
-      });
-
-      // Volume control
-      volumeSlider.addEventListener('input', () => {
-        const volume = volumeSlider.value / 100;
-        CONFIG.masterVolume = volume;
-        volumeLabel.textContent = `Volume: ${volumeSlider.value}%`;
-        
-        // Update all sound volumes
-        Object.values(this.sounds).forEach(sound => {
-          sound.volume = volume;
-        });
-      });
-
-      // Click outside to close volume popup
-      document.addEventListener('click', (e) => {
-        if (e.target !== volumePopup && e.target !== soundToggle && !volumePopup.contains(e.target)) {
-          volumePopup.style.display = 'none';
-        }
-      });
-
-      // Set initial volume for all sounds
-      Object.values(this.sounds).forEach(sound => {
-        sound.volume = CONFIG.masterVolume;
-      });
-      
-      console.log("Sound manager initialized with sounds:", Object.keys(this.sounds));
-    },
-
-    play(soundName, options = {}) {
-      if (!CONFIG.soundEnabled) return;
-      
-      const sound = this.sounds[soundName];
-      if (!sound) {
-        console.warn(`Sound "${soundName}" not found`);
-        return;
-      }
-      
-      console.log(`Playing sound: ${soundName}`);
-      
-      // Reset the sound if it's already playing
-      sound.pause();
-      sound.currentTime = 0;
-      sound.play().catch(e => console.warn('Error playing sound:', e));
-    },
-    
-    // Play a sound for a specific duration
-    playForDuration(soundName, duration, options = {}) {
-      if (!CONFIG.soundEnabled) return;
-      
-      const sound = this.sounds[soundName];
-      if (!sound) return;
-      
-      console.log(`Playing sound ${soundName} for ${duration}ms`);
-      
-      // Reset the sound if it's already playing
-      sound.pause();
-      sound.currentTime = 0;
-      sound.play().catch(e => console.warn('Error playing sound:', e));
-    },
-    
-    stop(soundName) {
-      const sound = this.sounds[soundName];
-      if (!sound) return;
-      
-      sound.pause();
-      sound.currentTime = 0;
-    },
-    
-    stopAll() {
-      Object.values(this.sounds).forEach(sound => {
-        sound.pause();
-        sound.currentTime = 0;
-      });
-    }
   };
 
   // Cat GIFs for the players
@@ -373,15 +133,6 @@
     { name:"Keyboard", emoji:"🎹", chip:"p3", color:"#b5ff9a", gifIndex: 2 },
     { name:"Bongo", emoji:"🥁", chip:"p4", color:"#ffdf9a", gifIndex: 3 },
     { name:"Shrek", emoji:"👹", chip:"p5", color:"#c4a2ff", gifIndex: 4 },
-  ];
-  
-  // Victory GIFs based on player type
-  const VICTORY_GIFS = [
-    "https://media.tenor.com/eAKuQI-yYD0AAAAi/gato-cat.gif", // Grumpy
-    "https://media.tenor.com/4-5UsuINt9EAAAAi/rainbow-cat-rainbow.gif", // Nyan
-    "https://media.tenor.com/AUicYpBbFF8AAAAi/piano-cat.gif", // Keyboard
-    "https://media.tenor.com/Sv8-f_Fla2cAAAAi/bongo-cat-drum.gif", // Bongo
-    "https://media.tenor.com/JZtOQKh_UmUAAAAi/shrek-cat.gif", // Shrek
   ];
   
   // Power-up types
@@ -433,7 +184,6 @@
     { name: "Tornado", onStart: () => {
         spawnTornado();
         updateStatus("🌪️ Tornado Alert - Run for cover!");
-        // No tornado sound as requested
       }, onEnd: () => {
         tornado = null;
         updateStatus("");
@@ -453,7 +203,6 @@
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const catImagesContainer = document.getElementById('catImagesContainer');
-  const victoryContainer = document.getElementById('victoryContainer');
   let W = 0, H = 0;
   const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
   function resize() {
@@ -472,11 +221,7 @@
 
   // ======== INPUT ========
   const keys = new Set();
-  window.addEventListener('keydown', (e) => { 
-    keys.add(e.key); 
-    if (e.key === 'Enter') start(); 
-    if ([' '].includes(e.key)) e.preventDefault(); 
-  });
+  window.addEventListener('keydown', (e) => { keys.add(e.key); if (e.key === 'Enter') start(); if ([' '].includes(e.key)) e.preventDefault(); });
   window.addEventListener('keyup', (e) => keys.delete(e.key));
 
   // ======== UTIL ========
@@ -496,12 +241,10 @@
   const treats = [];
   const roombas = [];
   const meowBursts = [];
-  const meowParticles = [];
-  const powerUps = [];
+  const meowParticles = []; // Particles array
+  const powerUps = []; // Power-ups array
   let doge = null;
-  // Track additional doges during chaos mode
-  window.doges = [];
-  const lasers = [];
+  const lasers = []; // Array of lasers
   let tornado = null;
   let currentWeather = null;
   let nextWeatherEvent = 0;
@@ -517,77 +260,6 @@
     { up:'t', down:'g', left:'f', right:'h', meow:'y' },
     { up:'8', down:'5', left:'4', right:'6', meow:'0' },
   ];
-
-  // Create confetti for victory animation
-  function createConfetti() {
-    const colors = ['#ff9aa2', '#9ad1ff', '#b5ff9a', '#ffdf9a', '#c4a2ff'];
-    const confettiCount = 100;
-    
-    for (let i = 0; i < confettiCount; i++) {
-      const confetti = document.createElement('div');
-      confetti.className = 'confetti';
-      confetti.style.left = `${rnd(0, 100)}%`;
-      confetti.style.width = `${rnd(5, 15)}px`;
-      confetti.style.height = `${rnd(5, 15)}px`;
-      confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
-      confetti.style.opacity = rnd(0.7, 1);
-      confetti.style.animationDuration = `${rnd(2, 5)}s`;
-      
-      victoryContainer.appendChild(confetti);
-    }
-    
-    // Remove confetti after animation is done
-    setTimeout(() => {
-      while (victoryContainer.firstChild) {
-        victoryContainer.removeChild(victoryContainer.firstChild);
-      }
-    }, 5000);
-  }
-
-  // Show victory animation
-  function showVictoryAnimation(player) {
-    victoryContainer.innerHTML = '';
-    victoryContainer.style.display = 'block';
-    
-    // Create confetti
-    createConfetti();
-    
-    // Get the corresponding victory GIF based on player skin
-    const gifIndex = player.skin.gifIndex;
-    const victoryGif = document.createElement('img');
-    victoryGif.className = 'victory-animation';
-    victoryGif.src = VICTORY_GIFS[gifIndex];
-    
-    // Add crown to player
-    const crown = document.createElement('div');
-    crown.className = 'crown';
-    crown.textContent = '👑';
-    if (player.imgElement) {
-      player.imgElement.appendChild(crown);
-    }
-    
-    // Add player name to animation
-    const nameTag = document.createElement('div');
-    nameTag.style.position = 'absolute';
-    nameTag.style.bottom = '-25px';
-    nameTag.style.left = '50%';
-    nameTag.style.transform = 'translateX(-50%)';
-    nameTag.style.fontWeight = 'bold';
-    nameTag.style.color = 'white';
-    nameTag.style.textShadow = '0 0 5px black';
-    nameTag.textContent = `${player.name} WINS!`;
-    victoryGif.appendChild(nameTag);
-    
-    victoryContainer.appendChild(victoryGif);
-    
-    // Play win sound
-    SoundManager.play('win');
-    
-    // Hide after animation is complete
-    setTimeout(() => {
-      victoryContainer.style.display = 'none';
-    }, 5000);
-  }
 
   // Create cat image element for a player
   function createCatImage(player) {
@@ -612,7 +284,7 @@
   // Update cat image position
   function updateCatImagePositions() {
     players.forEach(p => {
-      if (p && p.imgElement) {
+      if (p.imgElement) {
         p.imgElement.style.left = `${p.x}px`;
         p.imgElement.style.top = `${p.y}px`;
         
@@ -660,16 +332,16 @@
         invertUntil:0,
         lastMeow: -9999,
         alive:true,
-        isBeingMeowed: false,
-        meowEffectUntil: 0,
-        speedBoost: 1.0,
-        hasShield: false,
-        superMeow: false,
-        treatMagnet: false,
-        activePowerUps: [],
-        beingEaten: false,
-        eatenUntil: 0,
-        respawnPoint: { x: 0, y: 0 }
+        isBeingMeowed: false, // Track if player is under meow effect
+        meowEffectUntil: 0, // Track how long the meow effect lasts
+        speedBoost: 1.0, // Power-up: speed multiplier
+        hasShield: false, // Power-up: shield against meow
+        superMeow: false, // Power-up: super meow power
+        treatMagnet: false, // Power-up: attracts treats
+        activePowerUps: [], // Track active power-ups
+        beingEaten: false, // Track if player is being eaten by doge
+        eatenUntil: 0, // When player will respawn
+        respawnPoint: { x: 0, y: 0 } // Where player will respawn
       };
       
       // Create cat image element
@@ -682,7 +354,6 @@
 
   function spawnTreat(){
     const t = { 
-      id: Math.random().toString(36).substring(2, 15),
       x: rnd(CONFIG.boundsPadding, W-CONFIG.boundsPadding),
       y: rnd(CONFIG.boundsPadding+40, H-CONFIG.boundsPadding),
       r: CONFIG.treatRadius, 
@@ -706,7 +377,7 @@
         r: 18,
         vx: rnd(-1.4,1.4),
         vy: rnd(-1.4,1.4),
-        emoji:'🧹',
+        emoji:'🧹', // broom as a 'roomba' vibe
       });
     }
   }
@@ -719,50 +390,26 @@
       r: 26,
       vx: side==='L' ? rnd(2.0,2.5) : rnd(-2.5,-2.0),
       vy: 0,
-      emoji:'🐶',
-      ttl: 15000,
+      emoji:'🐶', // Doge cameo
+      ttl: 15000, // Increased lifespan so it can chase players longer
       target: null,
-      eating: null,
-      eatingStartTime: 0
+      eating: null, // Which player is being eaten
+      eatingStartTime: 0 // When eating started
     };
-  }
-
-  // Add this new function for spawning a second doge during chaos mode
-  function spawnSecondDoge() {
-    // Choose opposite side from where standard doge usually spawns
-    const side = Math.random() < 0.5 ? 'T' : 'B';
-    const secondDoge = {
-      id: 'chaos_doge',
-      x: side === 'T' ? rnd(60, W-60) : rnd(60, W-60),
-      y: side === 'T' ? -60 : H+60,
-      r: 30, // Slightly larger
-      vx: 0,
-      vy: side === 'T' ? rnd(2.0, 2.5) : rnd(-2.5, -2.0),
-      emoji: '🐺', // Different emoji
-      ttl: CONFIG.secretSauceDuration, // Will last the entire chaos mode
-      target: null,
-      eating: null,
-      eatingStartTime: 0,
-      isChaosDoge: true // Flag to identify it
-    };
-    
-    // Add to the game world
-    window.doges.push(secondDoge);
   }
 
   function spawnLasers(){
     lasers.length = 0;
     for (let i = 0; i < CONFIG.laserCount; i++) {
       lasers.push({
-        id: Math.random().toString(36).substring(2, 15),
         x: rnd(40, W-40),
         y: rnd(90, H-40),
         r: 10,
         emoji: '🔴',
-        t: Math.floor(rnd(0, 120)),
+        t: Math.floor(rnd(0, 120)), // Staggered timing
         targetX: rnd(40, W-40),
         targetY: rnd(90, H-40),
-        speed: rnd(2.8, 4.2)
+        speed: rnd(2.8, 4.2) // Varied speeds
       });
     }
   }
@@ -878,53 +525,16 @@
     resetGame();
     last = performance.now();
     requestAnimationFrame(loop);
-    
-    // Initialize audio with a user gesture
-    if (!window.audioInitialized) {
-      window.audioInitialized = true;
-      console.log("Initializing audio on game start...");
-      
-      // Play and immediately pause all sounds to initialize the audio context
-      Object.values(SoundManager.sounds).forEach(sound => {
-        sound.volume = CONFIG.masterVolume;
-        const playPromise = sound.play();
-        if (playPromise !== undefined) {
-          playPromise.then(_ => {
-            sound.pause();
-            sound.currentTime = 0;
-            console.log("Audio initialized successfully");
-          }).catch(error => {
-            console.log("Audio play prevented: ", error);
-          });
-        }
-      });
-      
-      updateStatus('Game started! 🔊 Sound effects enabled.');
-      
-      // Play meow sound on game start
-      SoundManager.play('meow');
-    }
   }
 
   function resetGame(){
-    // Initialize sound manager
-    if (!window.soundInitialized) {
-      SoundManager.init();
-      window.soundInitialized = true;
-    }
-    
-    // Stop all sounds
-    SoundManager.stopAll();
-    
     spawnPlayers(CONFIG.maxPlayers);
     treats.length=0;
     roombas.length=0;
     meowBursts.length=0;
-    meowParticles.length=0;
-    powerUps.length=0;
+    meowParticles.length=0; // Clear particles
+    powerUps.length=0; // Clear power-ups
     doge = null;
-    // Reset chaos doges array
-    window.doges = [];
     tornado = null;
     currentWeather = null;
     if (CONFIG.laserActive) spawnLasers();
@@ -932,7 +542,7 @@
     for(let i=0;i<CONFIG.treatsOnField;i++) spawnTreat();
     nextTreatAt = performance.now() + CONFIG.treatRespawnMs;
     nextDogeAt = performance.now() + CONFIG.dogeEveryMs;
-    nextWeatherEvent = performance.now() + 5000;
+    nextWeatherEvent = performance.now() + 5000; // First weather after 5 seconds
     nextSecretSauce = performance.now() + CONFIG.secretSauceInterval;
     secretSauceActive = false;
     secretSauceCountdown = 30;
@@ -943,15 +553,6 @@
     updateStatus('Collect fish. First to ' + CONFIG.targetScore + '!');
     document.getElementById('powerups').innerHTML = '';
     updateChaosTimer();
-    
-    // Clean up victory animation
-    victoryContainer.style.display = 'none';
-    while (victoryContainer.firstChild) {
-      victoryContainer.removeChild(victoryContainer.firstChild);
-    }
-    
-    // Remove any crowns from previous winners
-    document.querySelectorAll('.crown').forEach(crown => crown.remove());
   }
 
   function updateStatus(s){ document.getElementById('status').textContent = s; }
@@ -1002,10 +603,7 @@
     if (e.key.toLowerCase()==='p'){ paused = !paused; updateStatus(paused?'Paused':''); }
     if (e.key.toLowerCase()==='r'){ resetGame(); }
   });
-  document.getElementById('startBtn').addEventListener('click', () => {
-    SoundManager.play('meow'); // Play meow sound for button click
-    start();
-  });
+  document.getElementById('startBtn').addEventListener('click', start);
 
   let winner = null;
 
@@ -1028,529 +626,450 @@
     if (left) p.vx -= speed*0.6;
     if (right) p.vx += speed*0.6;
 
-    // Handle meow attack
-    const meow = keys.has(p.controls.meow) || keys.has(p.controls.meow.toUpperCase());
-    if (meow && now - p.lastMeow > CONFIG.meowCooldownMs) {
+    // Meow knockback
+    if (keys.has(p.controls.meow) && now - p.lastMeow > CONFIG.meowCooldownMs){
       p.lastMeow = now;
       
-      // Create meow burst
-      const burst = {
-        x: p.x,
-        y: p.y,
-        r: p.superMeow ? CONFIG.meowKnockRange * 1.5 : CONFIG.meowKnockRange,
-        player: p,
-        t: 0,
-        isSuperMeow: p.superMeow
-      };
-      meowBursts.push(burst);
+      const range = p.superMeow ? CONFIG.meowKnockRange * 1.5 : CONFIG.meowKnockRange;
+      const force = p.superMeow ? CONFIG.meowKnockForce * 1.5 : CONFIG.meowKnockForce;
       
-      // Create particle effect
+      meowBursts.push({ 
+        x: p.x, 
+        y: p.y, 
+        r: 10, 
+        maxR: range, 
+        born: now, 
+        life: p.superMeow ? 420 : 320, 
+        owner: p, 
+        superMeow: p.superMeow 
+      });
+      
+      // Create visual particles for meow effect
       createMeowParticles(p.x, p.y, p.color, p.superMeow ? CONFIG.meowParticles * 2 : CONFIG.meowParticles);
       
-      // Play appropriate meow sound - supermeow or normal meow
+      // Apply effect immediately to others within range
+      for (const other of players){
+        if (other === p) continue;
+        if (other.hasShield) continue; // Shield blocks meow
+        if (other.beingEaten) continue; // Can't meow a player being eaten
+        
+        const dx = other.x - p.x, dy = other.y - p.y;
+        const d = Math.hypot(dx,dy);
+        if (d > 0 && d <= range){
+          const nx = dx/d, ny = dy/d;
+          const adjustedForce = force * (1 - d/range + 0.2);
+          other.vx += nx * adjustedForce;
+          other.vy += ny * adjustedForce;
+          
+          // Mark player as being meowed for visual effects
+          other.isBeingMeowed = true;
+          other.meowEffectUntil = now + 800;
+          
+          // Create visual particles at impact point
+          createMeowParticles(other.x, other.y, other.color);
+        }
+      }
+      
+      // Super meow also affects objects
       if (p.superMeow) {
-        SoundManager.play('superMeow');
+        // Push treats away
+        for (const t of treats) {
+          const dx = t.x - p.x, dy = t.y - p.y;
+          const d = Math.hypot(dx,dy);
+          if (d > 0 && d <= range) {
+            const nx = dx/d, ny = dy/d;
+            const adjustedForce = force * 0.3 * (1 - d/range + 0.2);
+            t.vx = nx * adjustedForce;
+            t.vy = ny * adjustedForce;
+          }
+        }
+        
+        // Push roombas away
+        for (const r of roombas) {
+          const dx = r.x - p.x, dy = r.y - p.y;
+          const d = Math.hypot(dx,dy);
+          if (d > 0 && d <= range) {
+            const nx = dx/d, ny = dy/d;
+            const adjustedForce = force * 0.4 * (1 - d/range + 0.2);
+            r.vx += nx * adjustedForce;
+            r.vy += ny * adjustedForce;
+          }
+        }
+      }
+      
+      updateStatus(`${p.name} used ${p.superMeow ? 'SUPER ' : ''}MEOW POWER!`);
+    }
+  }
+
+  function updatePlayer(p){
+    const now = performance.now();
+    
+    // Handle respawning if eaten
+    if (p.beingEaten && now > p.eatenUntil) {
+      respawnPlayer(p);
+    }
+    
+    // Skip other updates if being eaten
+    if (p.beingEaten) return;
+    
+    // Update meow effect status
+    if (p.isBeingMeowed && now > p.meowEffectUntil) {
+      p.isBeingMeowed = false;
+    }
+    
+    // Update power-up timers and remove expired ones
+    for (let i = p.activePowerUps.length - 1; i >= 0; i--) {
+      const pu = p.activePowerUps[i];
+      if (now > pu.endTime) {
+        // Remove power-up UI element
+        if (pu.displayElement && pu.displayElement.parentNode) {
+          pu.displayElement.parentNode.removeChild(pu.displayElement);
+        }
+        
+        // Call cleanup function
+        if (pu.cleanup) pu.cleanup();
+        
+        // Remove from active power-ups
+        p.activePowerUps.splice(i, 1);
+      }
+    }
+    
+    p.vx *= CONFIG.friction;
+    p.vy *= CONFIG.friction;
+    p.x += p.vx;
+    p.y += p.vy;
+    edgeBounce(p, p.r);
+    
+    // Treat magnet power-up
+    if (p.treatMagnet) {
+      for (const t of treats) {
+        const dx = p.x - t.x;
+        const dy = p.y - t.y;
+        const d = Math.hypot(dx, dy);
+        if (d < 150) {
+          const force = 0.8 * (1 - d/150);
+          t.vx += (dx/d) * force;
+          t.vy += (dy/d) * force;
+        }
       }
     }
   }
 
-  function updatePlayers(){
-    const now = performance.now();
-    
-    // Update active power-ups
-    players.forEach(p => {
-      // Check for expired power-ups
-      for (let i = p.activePowerUps.length - 1; i >= 0; i--) {
-        const pu = p.activePowerUps[i];
-        if (now >= pu.endTime) {
-          // Remove power-up effect
-          pu.removeEffect();
-          
-          // Remove from UI
-          if (pu.displayElement && pu.displayElement.parentNode) {
-            pu.displayElement.parentNode.removeChild(pu.displayElement);
-          }
-          
-          // Remove from player's active power-ups
-          p.activePowerUps.splice(i, 1);
-        }
-      }
-      
-      // Handle meow effect visual
-      if (now < p.meowEffectUntil) {
-        p.isBeingMeowed = true;
-      } else {
-        p.isBeingMeowed = false;
-      }
-      
-      // Check if player needs to be respawned after being eaten
-      if (p.beingEaten && now >= p.eatenUntil) {
-        respawnPlayer(p);
-      }
-      
-      // Only handle input and movement if not being eaten
-      if (!p.beingEaten) {
-        handleInput(p);
-        
-        // Move player
-        p.x += p.vx;
-        p.y += p.vy;
-        
-        // Apply friction
-        p.vx *= CONFIG.friction;
-        p.vy *= CONFIG.friction;
-        
-        // Enforce boundaries with bounce effect
-        edgeBounce(p, CONFIG.boundsPadding + p.r);
-      }
-      
-      // Magnet effect - pull nearby treats
-      if (p.treatMagnet) {
-        const magnetRange = 150;
-        treats.forEach(treat => {
-          const dx = p.x - treat.x;
-          const dy = p.y - treat.y;
-          const d = Math.hypot(dx, dy);
-          
-          if (d < magnetRange) {
-            const strength = (1 - d / magnetRange) * 2.5;
-            treat.vx += (dx / d) * strength;
-            treat.vy += (dy / d) * strength;
-          }
-        });
-      }
-    });
-  }
-
   function updateTreats(){
-    const now = performance.now();
-    
-    // Update all treats
-    treats.forEach(t => {
-      // Apply friction
-      t.vx *= 0.95;
-      t.vy *= 0.95;
-      
-      // Move treat
-      t.x += t.vx;
-      t.y += t.vy;
-    });
-    
-    // Check for treat collection
-    for (let i = treats.length - 1; i >= 0; i--) {
-      const t = treats[i];
-      
-      for (const p of players) {
-        if (p.beingEaten) continue; // Skip if player is being eaten
+    // Update treat positions with velocity
+    for (const t of treats) {
+      if (t.vx !== 0 || t.vy !== 0) {
+        t.x += t.vx;
+        t.y += t.vy;
+        t.vx *= 0.95;
+        t.vy *= 0.95;
         
-        if (circleCollide(p.x, p.y, p.r, t.x, t.y, t.r)) {
-          // Collect treat
+        // Stop very small movements
+        if (Math.abs(t.vx) < 0.1) t.vx = 0;
+        if (Math.abs(t.vy) < 0.1) t.vy = 0;
+        
+        // Keep treats in bounds
+        if (t.x < CONFIG.boundsPadding) { t.x = CONFIG.boundsPadding; t.vx *= -0.5; }
+        if (t.x > W - CONFIG.boundsPadding) { t.x = W - CONFIG.boundsPadding; t.vx *= -0.5; }
+        if (t.y < CONFIG.boundsPadding + 40) { t.y = CONFIG.boundsPadding + 40; t.vy *= -0.5; }
+        if (t.y > H - CONFIG.boundsPadding) { t.y = H - CONFIG.boundsPadding; t.vy *= -0.5; }
+      }
+    }
+    
+    // Collect
+    for (let i=treats.length-1;i>=0;i--){
+      const t = treats[i];
+      for (const p of players){
+        // Skip players being eaten
+        if (p.beingEaten) continue;
+        
+        if (circleCollide(p.x,p.y,p.r, t.x,t.y,t.r)){
           p.score++;
-          treats.splice(i, 1);
           updateScoreUI();
+          treats.splice(i,1);
           
-          // Check for winner
-          if (p.score >= CONFIG.targetScore) {
-            winner = p;
-            showVictoryAnimation(p);
+          // Create particle effect when collecting treats
+          createMeowParticles(t.x, t.y, "#5dffea");
+          
+          if (p.score >= CONFIG.targetScore && !winner){
+            endGameWithWinner(p);
           }
-          
-          // Create particle effect at collection point
-          createExplosion(t.x, t.y, "#ffcc00", 10);
-          
-          // Play treat collection sound
-          SoundManager.play('treat');
           break;
         }
       }
     }
     
-    // Spawn new treats
-    if (now >= nextTreatAt) {
+    // Respawn timer
+    const now = performance.now();
+    if (now >= nextTreatAt){
       nextTreatAt = now + CONFIG.treatRespawnMs;
-      ensureTreats();
+      if (treats.length < CONFIG.treatsOnField) spawnTreat();
     }
+  }
+  
+  function endGameWithWinner(p) {
+    winner = p;
+    paused = true;
+    updateStatus(`🎉 ${p.emoji} ${p.name} WINS! Press R to restart.`);
   }
 
   function updateRoombas(){
-    roombas.forEach(r => {
-      // Move roomba
-      r.x += r.vx;
-      r.y += r.vy;
-      
-      // Bounce off edges
-      if (r.x < r.r || r.x > W - r.r) {
-        r.vx *= -1;
-        r.x = clamp(r.x, r.r, W - r.r);
-      }
-      if (r.y < r.r || r.y > H - r.r) {
-        r.vy *= -1;
-        r.y = clamp(r.y, r.r, H - r.r);
-      }
-      
-      // Randomly change direction occasionally
-      if (Math.random() < 0.01) {
-        r.vx += rnd(-0.5, 0.5);
-        r.vy += rnd(-0.5, 0.5);
+    for (const r of roombas){
+      r.x += r.vx; r.y += r.vy;
+      if (r.x < 40 || r.x > W-40) r.vx *= -1;
+      if (r.y < 70 || r.y > H-40) r.vy *= -1;
+      // Push players slightly
+      for (const p of players){
+        // Skip players being eaten
+        if (p.beingEaten) continue;
         
-        // Normalize speed
-        const speed = Math.hypot(r.vx, r.vy);
-        if (speed > 1.4) {
-          r.vx = (r.vx / speed) * 1.4;
-          r.vy = (r.vy / speed) * 1.4;
+        if (circleCollide(p.x,p.y,p.r, r.x,r.y,r.r)){
+          const dx = p.x - r.x, dy = p.y - r.y; const d = Math.hypot(dx,dy)||1;
+          const nx = dx/d, ny = dy/d;
+          p.vx += nx*1.8; p.vy += ny*1.8;
+          
+          // Small particles when hitting roomba
+          if (Math.random() < 0.3) {
+            createMeowParticles(p.x - (nx*p.r), p.y - (ny*p.r), "#aaaaaa");
+          }
         }
       }
-      
-      // Collide with players
-      for (const p of players) {
-        if (p.beingEaten) continue; // Skip if player is being eaten
-        
-        if (circleCollide(p.x, p.y, p.r, r.x, r.y, r.r)) {
-          // Bump player
-          const dx = p.x - r.x;
-          const dy = p.y - r.y;
-          const d = Math.hypot(dx, dy) || 1;
-          
-          // Apply force to player
-          p.vx += (dx / d) * 4;
-          p.vy += (dy / d) * 4;
-          
-          // Apply opposite force to roomba
-          r.vx -= (dx / d) * 2;
-          r.vy -= (dy / d) * 2;
-          
-          // Play roomba collision sound
-          SoundManager.play('roomba');
-        }
-      }
-    });
+    }
   }
 
-  // Update the updateDoge function to handle multiple doges
-  function updateDoge() {
+  function updateDoge(){
     const now = performance.now();
-    
-    // Spawn regular doge if needed
-    if (!doge && now >= nextDogeAt) { 
-      nextDogeAt = now + CONFIG.dogeEveryMs;
-      spawnDoge(); 
-    }
-    
-    // Process main doge
-    if (doge) {
-      // If doge is not eating a player, move toward nearest player
-      if (!doge.eating) {
-        // Find closest player
-        let closest = Infinity;
-        let closestPlayer = null;
-        
-        for (const p of players) {
-          if (p.beingEaten) continue;
-          
-          const d = dist(doge, p);
-          if (d < closest) {
-            closest = d;
-            closestPlayer = p;
-          }
-        }
-        
-        if (closestPlayer) {
-          doge.target = closestPlayer;
-          
-          // Chase target player
-          const dx = closestPlayer.x - doge.x;
-          const dy = closestPlayer.y - doge.y;
-          const d = Math.hypot(dx, dy) || 1;
-          
-          doge.vx = (dx / d) * CONFIG.dogeSpeed;
-          doge.vy = (dy / d) * CONFIG.dogeSpeed;
-        }
-        
-        // Move doge
-        doge.x += doge.vx;
-        doge.y += doge.vy;
-        
-        // Check if caught a player
-        for (const p of players) {
-          if (p.beingEaten) continue;
-          
-          if (circleCollide(p.x, p.y, p.r, doge.x, doge.y, doge.r)) {
-            // Start eating player
-            doge.eating = p;
-            doge.eatingStartTime = now;
-            
-            // Mark player as being eaten
-            p.beingEaten = true;
-            p.eatenUntil = now + CONFIG.dogeEatTimeMs;
-            
-            // Set respawn point
-            p.respawnPoint = {
-              x: rnd(100, W-100),
-              y: rnd(100, H-100)
-            };
-            
-            // Eating effect
-            createExplosion(p.x, p.y, "#ff6600", 25);
-            
-            // Player loses treats
-            if (p.score > 0) {
-              const lostTreats = Math.min(p.score, 3);
-              p.score -= lostTreats;
-              updateScoreUI();
-              
-              // Spawn lost treats
-              for (let i = 0; i < lostTreats; i++) {
-                treats.push({
-                  x: doge.x + rnd(-60, 60),
-                  y: doge.y + rnd(-60, 60),
-                  r: CONFIG.treatRadius,
-                  emoji: '🐟',
-                  vx: rnd(-3, 3),
-                  vy: rnd(-3, 3)
-                });
-              }
-            }
-            
-            updateStatus(`${p.name} got eaten by doge!`);
-            
-            // Play doge sound ONLY when player gets eaten
-            SoundManager.play('doge');
-            break;
-          }
-        }
-      } else {
-        // Check if done eating
+    if (!doge && now >= nextDogeAt){ nextDogeAt = now + CONFIG.dogeEveryMs; spawnDoge(); }
+    if (doge){
+      // If doge is eating a player
+      if (doge.eating) {
         const eatingDuration = now - doge.eatingStartTime;
+        
+        // When done eating, release player (they will respawn)
         if (eatingDuration >= CONFIG.dogeEatTimeMs) {
           doge.eating = null;
         }
-      }
-      
-      // Decrement TTL
-      doge.ttl -= 16;
-      
-      // Remove doge if expired or off screen
-      if (doge.ttl <= 0 || 
-          doge.x < -80 || 
-          doge.x > W+80 || 
-          doge.y < -80 || 
-          doge.y > H+80) {
-        doge = null;
-      }
-    }
-    
-    // Process additional doges during chaos mode
-    if (window.doges && window.doges.length > 0) {
-      for (let i = window.doges.length - 1; i >= 0; i--) {
-        const chaosDoge = window.doges[i];
-        
-        // Chase closest player
+      } 
+      // If doge is not currently eating anyone, find a player to chase
+      else {
+        // Find closest player to chase
         let closestDist = Infinity;
         let closestPlayer = null;
-        
         for (const p of players) {
+          // Skip players already being eaten
           if (p.beingEaten) continue;
           
-          const d = Math.hypot(p.x - chaosDoge.x, p.y - chaosDoge.y);
+          const d = dist(doge, p);
           if (d < closestDist) {
             closestDist = d;
             closestPlayer = p;
           }
         }
         
-        // Move toward closest player
+        // Chase closest player
         if (closestPlayer) {
-          const dx = closestPlayer.x - chaosDoge.x;
-          const dy = closestPlayer.y - chaosDoge.y;
+          const dx = closestPlayer.x - doge.x;
+          const dy = closestPlayer.y - doge.y;
           const d = Math.hypot(dx, dy) || 1;
+          doge.vx = (dx/d) * CONFIG.dogeSpeed;
+          doge.vy = (dy/d) * CONFIG.dogeSpeed;
           
-          // Slightly faster than regular doge
-          chaosDoge.vx = (dx/d) * CONFIG.dogeSpeed * 1.2;
-          chaosDoge.vy = (dy/d) * CONFIG.dogeSpeed * 1.2;
+          // In secret sauce mode, doge moves faster
+          if (secretSauceActive) {
+            doge.vx *= 1.5;
+            doge.vy *= 1.5;
+          }
           
-          // Check if caught a player
+          // Check if doge catches a player to eat them
           for (const p of players) {
+            // Skip players already being eaten
             if (p.beingEaten) continue;
             
-            if (circleCollide(p.x, p.y, p.r, chaosDoge.x, chaosDoge.y, chaosDoge.r)) {
+            if (circleCollide(p.x, p.y, p.r, doge.x, doge.y, doge.r)) {
               // Start eating player
-              chaosDoge.eating = p;
-              chaosDoge.eatingStartTime = now;
+              doge.eating = p;
+              doge.eatingStartTime = now;
               
               // Mark player as being eaten
               p.beingEaten = true;
               p.eatenUntil = now + CONFIG.dogeEatTimeMs;
               
-              // Set respawn point
+              // Set respawn point (random position)
               p.respawnPoint = {
                 x: rnd(100, W-100),
                 y: rnd(100, H-100)
               };
               
-              // Eating effect
+              // Eating effect particles
               createExplosion(p.x, p.y, "#ff6600", 25);
               
-              // Player loses treats
-              if (p.score > 0) {
-                const lostTreats = Math.min(p.score, 5); // Chaos doge takes more treats!
+              // Secret sauce: player loses treats when eaten
+              if (secretSauceActive && p.score > 0) {
+                const lostTreats = Math.min(p.score, 3);
                 p.score -= lostTreats;
                 updateScoreUI();
                 
                 // Spawn lost treats
-                for (let j = 0; j < lostTreats; j++) {
-                  treats.push({
-                    x: chaosDoge.x + rnd(-60, 60),
-                    y: chaosDoge.y + rnd(-60, 60),
-                    r: CONFIG.treatRadius,
-                    emoji: '🐟',
-                    vx: rnd(-3, 3),
-                    vy: rnd(-3, 3)
-                  });
+                for (let i = 0; i < lostTreats; i++) {
+                  const t = { 
+                    x: doge.x + rnd(-40, 40),
+                    y: doge.y + rnd(-40, 40),
+                    r: CONFIG.treatRadius, 
+                    emoji:'🐟',
+                    vx: rnd(-2, 2),
+                    vy: rnd(-2, 2)
+                  };
+                  treats.push(t);
                 }
               }
               
-              updateStatus(`CHAOS DOGE devoured ${p.name}!`);
-              
-              // Play doge sound when player gets eaten
-              SoundManager.play('doge');
+              updateStatus(`${p.name} was eaten by Doge!`);
               break;
             }
           }
         }
-        
-        // Update position
-        if (!chaosDoge.eating) {
-          chaosDoge.x += chaosDoge.vx;
-          chaosDoge.y += chaosDoge.vy;
-        } else {
-          // Check if done eating
-          const eatingDuration = now - chaosDoge.eatingStartTime;
-          if (eatingDuration >= CONFIG.dogeEatTimeMs) {
-            chaosDoge.eating = null;
-          }
-        }
-        
-        // Decrease TTL
-        chaosDoge.ttl -= 16;
-        
-        // Remove if expired
-        if (chaosDoge.ttl <= 0 || 
-            chaosDoge.x < -80 || 
-            chaosDoge.x > W+80 || 
-            chaosDoge.y < -80 || 
-            chaosDoge.y > H+80 ||
-            !secretSauceActive) { // Remove when chaos mode ends
-          window.doges.splice(i, 1);
-        }
       }
+      
+      // Update doge position
+      if (!doge.eating) {
+        doge.x += doge.vx; doge.y += doge.vy;
+      }
+      
+      doge.ttl -= 16;
+      
+      // Despawn if TTL expired
+      if (doge.ttl <= 0 || doge.x < -80 || doge.x > W+80 || doge.y < -80 || doge.y > H+80) doge = null;
     }
   }
 
   function updateLasers(){
-    if (!CONFIG.laserActive) return;
-    
-    lasers.forEach(l => {
-      l.t += 1;
+    for (let i = 0; i < lasers.length; i++) {
+      const laser = lasers[i];
+      laser.t += 1;
       
-      // Change target occasionally
-      if (l.t % 120 === 0) {
-        l.targetX = rnd(40, W-40);
-        l.targetY = rnd(90, H-40);
+      // Retarget sometimes (different timing for each laser)
+      if (laser.t % 120 === 0){
+        laser.targetX = rnd(40, W-40);
+        laser.targetY = rnd(90, H-40);
       }
       
-      // Move toward target
-      const dx = l.targetX - l.x;
-      const dy = l.targetY - l.y;
-      const d = Math.hypot(dx, dy);
-      
-      if (d > 5) {
-        l.x += (dx/d) * l.speed;
-        l.y += (dy/d) * l.speed;
-      }
-      
-      // Check for player collisions
-      for (const p of players) {
-        if (p.beingEaten) continue; // Skip if player is being eaten
-        
-        if (circleCollide(p.x, p.y, p.r, l.x, l.y, l.r)) {
-          // Invert controls
-          p.invertUntil = performance.now() + CONFIG.laserInvertMs;
-          
-          // Move laser away
-          l.targetX = rnd(40, W-40);
-          l.targetY = rnd(90, H-40);
-          
-          // Create particle effect
-          createExplosion(l.x, l.y, "#ff0000", 15);
-          
-          // Play laser sound when player gets hit by laser
-          SoundManager.play('laser');
-          
-          updateStatus(`${p.name} got confused by a laser!`);
-        }
-      }
-    });
-  }
+      const dx = laser.targetX - laser.x;
+      const dy = laser.targetY - laser.y;
+      const d = Math.hypot(dx,dy)||1;
+      laser.x += (dx/d) * laser.speed;
+      laser.y += (dy/d) * laser.speed;
 
-    function updateMeowBursts(){
-    const now = performance.now();
-    
-    // Update existing bursts
-    for (let i = meowBursts.length - 1; i >= 0; i--) {
-      const burst = meowBursts[i];
-      
-      burst.t += 1;
-      
-      // Check for collisions with other players
-      for (const p of players) {
-        if (p.beingEaten) continue; // Skip if player is being eaten
-        if (p === burst.player) continue; // Skip the meowing player
-        if (p.hasShield) continue; // Skip players with shield
+      // Invert controls on touch
+      for (const p of players){
+        // Skip players being eaten
+        if (p.beingEaten) continue;
         
-        // Check if player is within burst radius
-        const d = dist(p, burst);
-        if (d <= burst.r) {
-          // Calculate knock direction
-          const angle = Math.atan2(p.y - burst.y, p.x - burst.x);
-          const knockPower = burst.isSuperMeow ? CONFIG.meowKnockForce * 1.5 : CONFIG.meowKnockForce;
-          
-          // Apply knockback
-          p.vx += Math.cos(angle) * knockPower * (1 - d/burst.r);
-          p.vy += Math.sin(angle) * knockPower * (1 - d/burst.r);
-          
-          // Set meow effect
-          p.meowEffectUntil = now + 300;
-          
-          // Add particles at the collision point
-          createMeowParticles(p.x, p.y, burst.player.color, 6);
+        if (circleCollide(p.x,p.y,p.r, laser.x,laser.y, laser.r+6)){
+          // Shield prevents laser distraction
+          if (!p.hasShield) {
+            p.invertUntil = performance.now() + CONFIG.laserInvertMs;
+            updateStatus(`${p.name} is distracted by the LASER!`);
+            
+            // Particle effect when hit by laser
+            createMeowParticles(laser.x, laser.y, "#ff3333");
+          }
         }
-      }
-      
-      // Remove old bursts
-      if (burst.t > 5) {
-        meowBursts.splice(i, 1);
       }
     }
-    
-    // Update meow particles
+  }
+
+  function updateMeowBursts(){
+    const now = performance.now();
+    for (let i=meowBursts.length-1;i>=0;i--){
+      const b = meowBursts[i];
+      const life = (now - b.born);
+      b.r = b.maxR * Math.min(1, life / b.life);
+      if (life > b.life) meowBursts.splice(i,1);
+    }
+  }
+  
+  // Update particles
+  function updateParticles() {
     for (let i = meowParticles.length - 1; i >= 0; i--) {
       const p = meowParticles[i];
-      
-      // Move particle
       p.x += p.vx;
+      p.vy += 0.1; // Gravity
       p.y += p.vy;
-      
-      // Slow down
-      p.vx *= 0.95;
+      p.vx *= 0.95; // Air resistance
       p.vy *= 0.95;
-      
-      // Decrease life and opacity
       p.life -= 1;
       p.opacity = p.life / 80;
       
-      // Remove dead particles
       if (p.life <= 0) {
         meowParticles.splice(i, 1);
+      }
+    }
+  }
+  
+  // Update tornado
+  function updateTornado() {
+    if (!tornado) return;
+    
+    tornado.x += tornado.vx;
+    tornado.y += tornado.vy;
+    tornado.angle += tornado.rotationSpeed;
+    
+    // Bounce off edges
+    if (tornado.x < tornado.r || tornado.x > W - tornado.r) tornado.vx *= -1;
+    if (tornado.y < tornado.r || tornado.y > H - tornado.r) tornado.vy *= -1;
+    
+    // Pull players toward tornado
+    for (const p of players) {
+      // Skip players being eaten
+      if (p.beingEaten) continue;
+      
+      const dx = tornado.x - p.x;
+      const dy = tornado.y - p.y;
+      const d = Math.hypot(dx, dy);
+      
+      if (d < tornado.r * 2) {
+        const pullFactor = (1 - d / (tornado.r * 2)) * tornado.pullForce;
+        p.vx += (dx/d) * pullFactor;
+        p.vy += (dy/d) * pullFactor;
+        
+        // Spin effect
+        const angle = Math.atan2(dy, dx);
+        const perpX = -Math.sin(angle);
+        const perpY = Math.cos(angle);
+        p.vx += perpX * pullFactor * 0.8;
+        p.vy += perpY * pullFactor * 0.8;
+        
+        // Create particles
+        if (Math.random() < 0.1) {
+          createMeowParticles(p.x, p.y, "#bbbbbb");
+        }
+      }
+    }
+    
+    // Update tornado particles
+    for (const p of tornado.particles) {
+      p.angle += p.speed;
+      p.x = tornado.x + Math.cos(p.angle) * p.distance;
+      p.y = tornado.y + Math.sin(p.angle) * p.distance;
+    }
+    
+    // Move treats caught in tornado
+    for (const t of treats) {
+      const dx = tornado.x - t.x;
+      const dy = tornado.y - t.y;
+      const d = Math.hypot(dx, dy);
+      
+      if (d < tornado.r * 2) {
+        const pullFactor = (1 - d / (tornado.r * 2)) * tornado.pullForce * 0.8;
+        t.vx += (dx/d) * pullFactor;
+        t.vy += (dy/d) * pullFactor;
+        
+        // Spin effect
+        const angle = Math.atan2(dy, dx);
+        const perpX = -Math.sin(angle);
+        const perpY = Math.cos(angle);
+        t.vx += perpX * pullFactor * 0.8;
+        t.vy += perpY * pullFactor * 0.8;
       }
     }
   }
@@ -1558,165 +1077,96 @@
   function updatePowerUps() {
     const now = performance.now();
     
-    // Random chance to spawn a power-up
-    if (Math.random() < CONFIG.powerUpChance) {
-      spawnPowerUp();
-    }
-    
-    // Check for power-up collection
+    // Check for power-up collisions
     for (let i = powerUps.length - 1; i >= 0; i--) {
-      const pu = powerUps[i];
+      const p = powerUps[i];
+      p.pulsePhase = (p.pulsePhase + 0.05) % (Math.PI * 2);
       
-      // Skip if already collected
-      if (pu.collectPlayer) continue;
-      
-      // Check for collision with players
-      for (const p of players) {
-        if (p.beingEaten) continue; // Skip if player is being eaten
+      // Check if any player collected this power-up
+      for (const player of players) {
+        // Skip players being eaten
+        if (player.beingEaten) continue;
         
-        if (circleCollide(p.x, p.y, p.r, pu.x, pu.y, pu.r)) {
+        if (circleCollide(player.x, player.y, player.r, p.x, p.y, p.r)) {
           // Mark as collected
-          pu.collectPlayer = p;
-          pu.collectTime = now;
+          p.collectTime = now;
+          p.collectPlayer = player;
           
           // Apply power-up effect
-          const powerUpId = Math.random().toString(36).substring(2, 9);
-          const removeEffect = pu.type.effect(p);
+          const endTime = now + p.type.duration;
+          const puId = now.toString() + Math.random().toString().slice(2, 6);
           
-          // Add to player's active power-ups
-          p.activePowerUps.push({
-            id: powerUpId,
-            type: pu.type,
-            endTime: now + pu.type.duration,
-            removeEffect: removeEffect,
+          // Call the power-up effect function and get the cleanup function
+          const cleanup = p.type.effect(player);
+          
+          // Store active power-up
+          player.activePowerUps.push({
+            id: puId,
+            type: p.type,
+            endTime: endTime,
+            cleanup: cleanup,
             displayElement: null
           });
           
           // Create particle effect
-          createExplosion(pu.x, pu.y, pu.type.color, 20);
+          createExplosion(p.x, p.y, p.type.color);
           
-          updateStatus(`${p.name} collected ${pu.type.name}!`);
+          // Remove power-up from array
+          powerUps.splice(i, 1);
+          
+          updateStatus(`${player.name} got ${p.type.name}!`);
           break;
         }
       }
-      
-      // Remove collected power-ups after animation
-      if (pu.collectPlayer && now - pu.collectTime > 500) {
-        powerUps.splice(i, 1);
-      }
-      
-      // Pulse animation
-      pu.pulsePhase = (pu.pulsePhase + 0.05) % (Math.PI * 2);
     }
     
-    // Update power-ups UI
-    updatePowerUpsUI();
-  }
-  
-  function updateTornado() {
-    if (!tornado) return;
-    
-    // Move tornado
-    tornado.x += tornado.vx;
-    tornado.y += tornado.vy;
-    
-    // Bounce off edges
-    if (tornado.x < tornado.r || tornado.x > W - tornado.r) {
-      tornado.vx *= -1;
-      tornado.x = clamp(tornado.x, tornado.r, W - tornado.r);
-    }
-    if (tornado.y < tornado.r || tornado.y > H - tornado.r) {
-      tornado.vy *= -1;
-      tornado.y = clamp(tornado.y, tornado.r, H - tornado.r);
-    }
-    
-    // Randomly change direction occasionally
-    if (Math.random() < 0.02) {
-      tornado.vx += rnd(-0.5, 0.5);
-      tornado.vy += rnd(-0.5, 0.5);
-      
-      // Limit max speed
-      const speed = Math.hypot(tornado.vx, tornado.vy);
-      if (speed > 3) {
-        tornado.vx = (tornado.vx / speed) * 3;
-        tornado.vy = (tornado.vy / speed) * 3;
-      }
-    }
-    
-    // Update tornado particles
-    tornado.angle += tornado.rotationSpeed;
-    
-    tornado.particles.forEach(p => {
-      // Update angle
-      p.angle += p.speed;
-      
-      // Calculate position
-      p.x = tornado.x + Math.cos(p.angle) * p.distance;
-      p.y = tornado.y + Math.sin(p.angle) * p.distance;
-    });
-    
-    // Pull players toward tornado
-    for (const p of players) {
-      if (p.beingEaten) continue; // Skip if player is being eaten
-      
-      const dx = tornado.x - p.x;
-      const dy = tornado.y - p.y;
-      const d = Math.hypot(dx, dy);
-      
-      const pullRadius = tornado.r * 4;
-      
-      if (d < pullRadius) {
-        // Calculate pull strength based on distance
-        const pullStrength = tornado.pullForce * (1 - d / pullRadius);
-        
-        // Apply force toward tornado
-        p.vx += (dx / d) * pullStrength;
-        p.vy += (dy / d) * pullStrength;
-        
-        // Spin effect for very close players
-        if (d < tornado.r * 1.5) {
-          const spinAngle = Math.atan2(dy, dx) + Math.PI/2;
-          p.vx += Math.cos(spinAngle) * pullStrength * 0.8;
-          p.vy += Math.sin(spinAngle) * pullStrength * 0.8;
-        }
-      }
+    // Chance to spawn a new power-up
+    if (Math.random() < CONFIG.powerUpChance && powerUps.length < 3) {
+      spawnPowerUp();
     }
   }
   
   function updateWeather() {
     const now = performance.now();
     
-    // Start new weather event
-    if (!currentWeather && CONFIG.weatherEvents && now >= nextWeatherEvent) {
-      // Choose random weather event
-      const event = WEATHER_EVENTS[Math.floor(Math.random() * WEATHER_EVENTS.length)];
-      currentWeather = {
-        type: event,
-        startTime: now,
-        endTime: now + CONFIG.weatherDuration
-      };
-      
-      // Start weather effect
-      event.onStart();
-      
-      // Set next weather event time
-      nextWeatherEvent = now + CONFIG.weatherDuration + CONFIG.weatherCooldown;
-    }
-    
-    // End current weather event
+    // End current weather event if time's up
     if (currentWeather && now >= currentWeather.endTime) {
-      currentWeather.type.onEnd();
+      currentWeather.event.onEnd();
       currentWeather = null;
     }
+    
+    // Start new weather event if it's time
+    if (CONFIG.weatherEvents && !currentWeather && now >= nextWeatherEvent) {
+      const randomEvent = WEATHER_EVENTS[Math.floor(Math.random() * WEATHER_EVENTS.length)];
+      currentWeather = {
+        event: randomEvent,
+        endTime: now + CONFIG.weatherDuration
+      };
+      randomEvent.onStart();
+      nextWeatherEvent = now + CONFIG.weatherDuration + CONFIG.weatherCooldown;
+    }
   }
-
+  
   function updateSecretSauce() {
     const now = performance.now();
     
-    // Update countdown
+    // Update countdown timer
     if (!secretSauceActive) {
-      secretSauceCountdown = Math.max(0, Math.floor((nextSecretSauce - now) / 1000));
-      updateChaosTimer();
+      const secondsLeft = Math.ceil((nextSecretSauce - now) / 1000);
+      if (secretSauceCountdown !== secondsLeft) {
+        secretSauceCountdown = secondsLeft;
+        updateChaosTimer();
+      }
+    }
+    
+    // End secret sauce mode
+    if (secretSauceActive && now >= nextSecretSauce + CONFIG.secretSauceDuration) {
+      secretSauceActive = false;
+      document.getElementById('warning').style.display = 'none';
+      updateStatus('');
+      
+      // Schedule next chaos mode
+      nextSecretSauce = now + CONFIG.secretSauceInterval;
     }
     
     // Start secret sauce mode
@@ -1726,152 +1176,148 @@
       updateStatus('⚠️ CHAOS MODE ACTIVATED! ⚠️');
       document.getElementById('timer').textContent = 'CHAOS MODE!';
       
-      // Play chaos sound for chaos mode duration
-      SoundManager.play('chaos');
-      
       // Spawn additional chaos
       for (let i = 0; i < 3; i++) spawnPowerUp();
-      
-      // Spawn a doge if one doesn't exist
-      if (!doge) {
-        spawnDoge();
-      }
-      
-      // CHANGE: Always spawn an additional doge during chaos mode
-      spawnSecondDoge();
-      
+      if (Math.random() < 0.5) spawnDoge();
       for (let i = 0; i < 3; i++) spawnTreat();
     }
-    
-    // End secret sauce mode
-    if (secretSauceActive && now >= nextSecretSauce + CONFIG.secretSauceDuration) {
-      secretSauceActive = false;
-      document.getElementById('warning').style.display = 'none';
-      updateStatus('Chaos mode ended!');
-      nextSecretSauce = now + CONFIG.secretSauceInterval;
-      secretSauceCountdown = Math.floor(CONFIG.secretSauceInterval / 1000);
-      updateChaosTimer();
-      
-      // Stop chaos sound when mode ends
-      SoundManager.stop('chaos');
-    }
   }
 
-  function update(){
-    updatePlayers();
-    updateTreats();
-    updateRoombas();
-    updateDoge();
-    updateLasers();
-    updateMeowBursts();
-    updatePowerUps();
-    updateWeather();
-    updateTornado();
-    updateSecretSauce();
-    
-    // Update cat image positions
+  function loop(t){
+    requestAnimationFrame(loop);
+    const now = t;
+    if (!running) return;
+    let delta = now - last;
+    last = now;
+    if (delta > 100) delta = 100; // clamp
+    acc += delta;
+
+    // Update UI elements that don't depend on physics tick
+    updatePowerUpsUI();
     updateCatImagePositions();
-    
-    // Update status if someone's winning
-    const leader = players.reduce((a, b) => a.score > b.score ? a : b);
-    if (leader.score >= CONFIG.targetScore * 0.75 && !winner) {
-      updateStatus(`${leader.name} is in the lead with ${leader.score}/${CONFIG.targetScore}!`);
+
+    while (acc >= dt){
+      if (!paused && !winner){
+        for (const p of players){ handleInput(p); updatePlayer(p); }
+        updateTreats();
+        updateRoombas();
+        updateDoge();
+        updateLasers();
+        updateMeowBursts();
+        updateParticles();
+        updatePowerUps();
+        updateTornado();
+        updateWeather();
+        updateSecretSauce();
+      }
+      acc -= dt;
     }
+    render();
   }
 
-  // ======== RENDERING ========
-  function drawCircle(x, y, r, fill, stroke) {
+  // ======== RENDER ========
+  function renderBG(){
+    // Gradient-ish grid
+    ctx.fillStyle = '#10131a';
+    ctx.fillRect(0,0,W,H);
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    for (let x=0; x<W; x+=40){
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x, 0, 1, H);
+    }
+    for (let y=0; y<H; y+=40){
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, y, W, 1);
+    }
+    ctx.restore();
+
+    // Top safe HUD strip
+    ctx.fillStyle = 'rgba(0,0,0,.25)';
+    ctx.fillRect(0,0,W,50);
+  }
+
+  function drawCircle(x,y,r, fill, stroke){
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, 2 * Math.PI);
-    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
+    ctx.arc(x,y,r,0,Math.PI*2);
+    if (fill){ ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke){ ctx.lineWidth = 2; ctx.strokeStyle = stroke; ctx.stroke(); }
   }
 
   function render(){
-    // Clear canvas
-    ctx.clearRect(0, 0, W, H);
+    renderBG();
+
+    // Treats
+    for (const t of treats){
+      drawCircle(t.x,t.y,t.r+4,'#1b2a2a',null);
+      ctx.font = '18px system-ui';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🐟', t.x, t.y);
+    }
+
+    // Tornado
+    if (tornado) {
+      // Draw tornado particles
+      for (const p of tornado.particles) {
+        ctx.fillStyle = 'rgba(200, 200, 200, 0.6)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Draw tornado center
+      ctx.font = '32px system-ui';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('🌪️', tornado.x, tornado.y);
+    }
     
-    // Draw treats
-    for (const t of treats) {
+    // PowerUps
+    for (const p of powerUps) {
+      // Pulse effect
+      const pulseSize = Math.sin(p.pulsePhase) * 4;
+      
+      // Glow effect
+      ctx.save();
+      const gradient = ctx.createRadialGradient(p.x, p.y, p.r-5, p.x, p.y, p.r+10+pulseSize);
+      gradient.addColorStop(0, p.type.color + '60');
+      gradient.addColorStop(1, 'transparent');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r+10+pulseSize, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+      
+      // Power-up circle
+      drawCircle(p.x, p.y, p.r+pulseSize, '#2b2f3a', p.type.color);
+      
+      // Power-up emoji
       ctx.font = '16px system-ui';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(t.emoji, t.x, t.y);
+      ctx.fillText(p.emoji, p.x, p.y);
     }
-    
-    // Draw meow particles
-    for (const p of meowParticles) {
-      ctx.globalAlpha = p.opacity;
-      drawCircle(p.x, p.y, p.r, p.color);
-      ctx.globalAlpha = 1;
-    }
-    
-    // Draw power-ups
-    for (const pu of powerUps) {
-      if (pu.collectPlayer) {
-        // Collection animation
-        const elapsed = performance.now() - pu.collectTime;
-        const scale = 1 + elapsed / 100;
-        const opacity = 1 - elapsed / 500;
-        
-        ctx.save();
-        ctx.globalAlpha = opacity;
-        ctx.translate(pu.x, pu.y);
-        ctx.scale(scale, scale);
-        
-        // Glow effect
-        ctx.shadowColor = pu.type.color;
-        ctx.shadowBlur = 10;
-        
-        ctx.font = '20px system-ui';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(pu.type.emoji, 0, 0);
-        
-        ctx.restore();
-      } else {
-        // Normal display with pulse effect
-        const pulse = Math.sin(pu.pulsePhase) * 0.2 + 1;
-        
-        ctx.save();
-        ctx.translate(pu.x, pu.y);
-        ctx.scale(pulse, pulse);
-        
-        // Glow effect
-        ctx.shadowColor = pu.type.color;
-        ctx.shadowBlur = 8;
-        
-        ctx.font = '20px system-ui';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(pu.type.emoji, 0, 0);
-        
-        ctx.restore();
-      }
-    }
-    
-    // Draw meow bursts
-    for (const burst of meowBursts) {
-      const progress = burst.t / 5; // 0 to 1 over 5 frames
-      const radius = burst.r * progress;
-      const alpha = 1 - progress;
-      
-      ctx.globalAlpha = alpha * 0.4;
-      drawCircle(burst.x, burst.y, radius, burst.player.color);
-      ctx.globalAlpha = 1;
-    }
-    
-    // Draw roombas
-    for (const r of roombas) {
-      drawCircle(r.x, r.y, r.r, '#5d4037', '#3e2723');
+
+    // Roombas
+    for (const r of roombas){
+      drawCircle(r.x,r.y,r.r,'#2b2f3a','#3a4152');
       ctx.font = '16px system-ui';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(r.emoji, r.x, r.y);
     }
-    
-    // Draw doge
-    if (doge) {
-      // Draw differently if eating a player
+
+    // Doge
+    if (doge){
+      // Special effect for secret sauce mode
+      if (secretSauceActive) {
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        drawCircle(doge.x, doge.y, doge.r+8, '#ff5500', null);
+        ctx.restore();
+      }
+      
+      // Draw doge differently if eating a player
       if (doge.eating) {
         // Larger mouth effect
-        drawCircle(doge.x, doge.y, doge.r + 5, '#4a1f1f', '#7a3f3f');
+        drawCircle(doge.x, doge.y, doge.r + 5, '#3a2f2b', '#5a423a');
         
         // Blood effect
         ctx.save();
@@ -1882,131 +1328,87 @@
         ctx.fill();
         ctx.restore();
         
-        // Doge emoji
         ctx.font = '25px system-ui';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('🐶', doge.x, doge.y);
+        ctx.fillText('🐺', doge.x, doge.y); // Use wolf emoji for eating doge
       } else {
-        drawCircle(doge.x, doge.y, doge.r, '#4a1f1f', '#7a3f3f');
+        drawCircle(doge.x, doge.y, doge.r, '#3a2f2b', '#5a423a');
         ctx.font = '20px system-ui';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText('🐶', doge.x, doge.y);
       }
     }
-    
-    // Chaos doges
-    if (window.doges && window.doges.length > 0) {
-      for (const chaosDoge of window.doges) {
-        // Red glow effect
-        ctx.save();
-        ctx.globalAlpha = 0.3;
-        drawCircle(chaosDoge.x, chaosDoge.y, chaosDoge.r+10, '#ff0000', null);
-        ctx.restore();
-        
-        // Draw differently if eating a player
-        if (chaosDoge.eating) {
-          // Larger mouth effect
-          drawCircle(chaosDoge.x, chaosDoge.y, chaosDoge.r + 8, '#4a1f1f', '#7a3f3f');
-          
-          // Blood effect
-          ctx.save();
-          ctx.globalAlpha = 0.7;
-          ctx.fillStyle = '#ff0000';
-          ctx.beginPath();
-          ctx.arc(chaosDoge.x, chaosDoge.y, chaosDoge.r - 5, 0, Math.PI*2);
-          ctx.fill();
-          ctx.restore();
-          
-          // Wolf emoji
-          ctx.font = '30px system-ui';
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText('🐺', chaosDoge.x, chaosDoge.y);
-        } else {
-          drawCircle(chaosDoge.x, chaosDoge.y, chaosDoge.r, '#4a1f1f', '#7a3f3f');
-          ctx.font = '25px system-ui';
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText('🐺', chaosDoge.x, chaosDoge.y);
-        }
-      }
-    }
-    
-    // Draw lasers
-    for (const l of lasers) {
-      // Pulse effect
-      const pulse = Math.sin(l.t * 0.2) * 0.2 + 1;
-      
-      ctx.save();
-      ctx.translate(l.x, l.y);
-      ctx.scale(pulse, pulse);
-      
-      // Glow effect
-      ctx.shadowColor = '#ff0000';
-      ctx.shadowBlur = 15;
-      
-      ctx.font = '16px system-ui';
+
+    // Lasers
+    for (const laser of lasers) {
+      drawCircle(laser.x, laser.y, laser.r, '#e53935', '#ffffff');
+      ctx.font = '12px system-ui';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(l.emoji, 0, 0);
+      ctx.fillText('🔴', laser.x, laser.y);
+    }
+
+    // Meow bursts
+    for (const b of meowBursts){
+      ctx.save();
+      const gradient = ctx.createRadialGradient(b.x, b.y, 1, b.x, b.y, b.r);
+      if (b.superMeow) {
+        gradient.addColorStop(0, b.owner ? b.owner.color + '60' : '#ffffff60');
+        gradient.addColorStop(0.6, b.owner ? b.owner.color + '20' : '#ffffff20');
+        gradient.addColorStop(1, 'transparent');
+      } else {
+        gradient.addColorStop(0, b.owner ? b.owner.color + '40' : '#ffffff40');
+        gradient.addColorStop(1, 'transparent');
+      }
+      ctx.fillStyle = gradient;
+      ctx.globalAlpha = b.superMeow ? 0.4 : 0.3;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+      ctx.fill();
       
+      ctx.globalAlpha = 0.18;
+      drawCircle(b.x, b.y, b.r, null, '#ffffff');
       ctx.restore();
     }
     
-    // Draw tornado
-    if (tornado) {
-      // Draw tornado particles
+    // Particles
+    for (const p of meowParticles) {
       ctx.save();
-      for (const p of tornado.particles) {
-        ctx.fillStyle = `rgba(100, 100, 100, ${Math.random() * 0.4 + 0.4})`;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      ctx.globalAlpha = p.opacity;
+      drawCircle(p.x, p.y, p.r, p.color, null);
       ctx.restore();
-      
-      // Draw tornado emoji
-      ctx.font = '40px system-ui';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('🌪️', tornado.x, tornado.y);
+    }
+
+    // Winner banner
+    if (winner){
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,.45)';
+      ctx.fillRect(0,0,W,H);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 42px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(`🎉 ${winner.emoji} ${winner.name} WINS!`, W/2, H/2 - 30);
+      ctx.font = 'bold 36px system-ui';
+      ctx.fillText(`Winner Winner Fish Dinner!`, W/2, H/2 + 20);
+      ctx.font = '18px system-ui';
+      ctx.fillText('Press R to restart', W/2, H/2 + 60);
+      ctx.restore();
     }
   }
 
-  function loop(now){
-    if (!running) return;
-    
-    // Winner found, stop game after delay
-    if (winner && now - winner.winTime > 6000) {
-      running = false;
-      document.getElementById('center').style.display = 'block';
-      document.getElementById('timer').style.display = 'none';
-      return;
-    }
-    
-    // Set win time when winner is found
-    if (winner && !winner.winTime) {
-      winner.winTime = now;
-    }
-    
-    // Handle pause
-    if (paused) {
-      last = now;
-      requestAnimationFrame(loop);
-      return;
-    }
-    
-    // Calculate frame delta and accumulator
-    const delta = now - last;
-    last = now;
-    acc += delta;
-    
-    // Fixed time step updates
-    while (acc >= dt) {
-      update();
-      acc -= dt;
-    }
-    
-    // Render
-    render();
-    requestAnimationFrame(loop);
+  // ======== BOOT ========
+  // Preload all cat GIF images
+  function preloadCatImages() {
+    CAT_GIFS.forEach(url => {
+      const img = new Image();
+      img.src = url;
+    });
   }
+  
+  // Start preloading images
+  preloadCatImages();
+  
+  // Show start screen, wait for Enter/click
+  // (Game starts via start())
 })();
 </script>
 </body>
