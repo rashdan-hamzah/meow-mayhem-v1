@@ -14,6 +14,7 @@
   canvas {
     background: transparent;
     touch-action: none;
+    display: block;
   }
   .ui-hint {
     position: fixed; left: 12px; bottom: 12px;
@@ -31,15 +32,17 @@
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d', { alpha: true });
 
-  // Responsive canvas
+  // Responsive canvas and cat centering
   function resize() {
-    const DPR = Math.min(window.devicePixelRatio || 1, 2);
-    const size = Math.min(window.innerWidth, window.innerHeight);
+    const DPR = Math.min(window.devicePixelRatio || 1, 2); // Limit DPR for performance
+    const size = Math.min(window.innerWidth, window.innerHeight); // Fit canvas to screen size
     canvas.width = Math.round(size * DPR);
     canvas.height = Math.round(size * DPR);
     canvas.style.width = Math.round(size) + 'px';
     canvas.style.height = Math.round(size) + 'px';
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    state.cat.x = canvas.width / 2; // Center the cat horizontally
+    state.cat.y = canvas.height / 2; // Center the cat vertically
   }
   window.addEventListener('resize', resize);
   resize();
@@ -92,7 +95,7 @@
         });
       }
     } else {
-      // Single tap: Cat plays
+      // Single-tap: Cat plays
       state.cat.isJumping = true;
       setTimeout(() => (state.cat.isJumping = false), 500);
     }
