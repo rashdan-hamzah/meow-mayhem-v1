@@ -2,132 +2,202 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Cute Cat — Super Interactive</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Tamagotchi Cat</title>
 <style>
-  html, body { 
-    height: 100%; margin: 0; 
-    display: flex; align-items: center; justify-content: center; 
-    background: #f7f8fb; 
+  html, body {
+    height: 100%; margin: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: #e8f0f7;
+    overflow: hidden;
   }
-  canvas { 
-    background: transparent; 
-    touch-action: none; 
+  canvas {
+    display: block;
+    touch-action: none;
   }
-  .ui-hint { 
-    position: fixed; left: 12px; bottom: 12px; 
-    font-family: system-ui, -apple-system, Segoe UI, Roboto; 
-    color: #555; font-size: 14px;
+  .ui-hint {
+    position: fixed;
+    left: 12px;
+    bottom: 12px;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto;
+    color: #555;
+    font-size: 14px;
   }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<div class="ui-hint">👆 Move mouse/finger → cat looks • Tap/click → pet the cat 💖</div>
+<div class="ui-hint">👆 Interact with the cat: Tap to make it walk, double-tap for special actions!</div>
 
 <script>
 (() => {
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d', { alpha: true });
 
-  // Responsive canvas resizing
+  // Resize canvas and center the cat dynamically
   function resize() {
-    const DPR = Math.min(window.devicePixelRatio || 1, 2); // Limit DPR for performance
-    const size = Math.min(window.innerWidth, window.innerHeight) * 0.75; // 75% of the smaller dimension
-    canvas.width = Math.round(size * DPR); // Canvas width in device pixels
-    canvas.height = Math.round(size * DPR); // Canvas height in device pixels
-    canvas.style.width = Math.round(size) + 'px'; // CSS width
-    canvas.style.height = Math.round(size) + 'px'; // CSS height
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); // Apply scaling for high-DPR screens
-  }
-  window.addEventListener('resize', resize);
-  resize(); // Initial call to set up canvas size
+    const DPR = window.devicePixelRatio || 1; // Device Pixel Ratio
+    const width = window.innerWidth; // Viewport width
+    const height = window.innerHeight; // Viewport height
 
-  // State variables
+    canvas.width = width * DPR; // Canvas width in device pixels
+    canvas.height = height * DPR; // Canvas height in device pixels
+    canvas.style.width = `${width}px`; // CSS width
+    canvas.style.height = `${height}px`; // CSS height
+
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); // Adjust the scaling
+
+    // Re-center the cat
+    state.cat.x = canvas.width / 2;
+    state.cat.y = canvas.height / 2;
+  }
+
+  // Initial resize on load
+  resize();
+  window.addEventListener('resize', resize);
+
+  // State variables for the cat and canvas
   const state = {
-    t: 0, // Current time
-    cursor: { x: canvas.width / 2, y: canvas.height / 2 }, // Cursor position
+    cat: {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      scale: 1,
+      isWalking: false,
+      isLicking: false,
+      direction: 1, // 1 = right, -1 = left
+      walkCycle: 0,
+    },
+    room: {
+      width: canvas.width,
+      height: canvas.height,
+    },
   };
 
-  // Get pointer position (mouse or touch)
-  function getPointerPos(e) {
-    const rect = canvas.getBoundingClientRect(); // Canvas bounding box
-    let clientX, clientY;
-    if (e.touches && e.touches[0]) {
-      clientX = e.touches[0].clientX; // Touch X
-      clientY = e.touches[0].clientY; // Touch Y
+  // Event listeners for user interactions
+  canvas.addEventListener('mousedown', () => {
+    state.cat.isWalking = !state.cat.isWalking; // Toggle walking
+  });
+
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      // Double-tap for licking
+      state.cat.isLicking = true;
+      setTimeout(() => (state.cat.isLicking = false), 1000);
     } else {
-      clientX = e.clientX; // Mouse X
-      clientY = e.clientY; // Mouse Y
+      state.cat.isWalking = !state.cat.isWalking; // Toggle walking
     }
-    return { x: (clientX - rect.left), y: (clientY - rect.top) };
-  }
+    e.preventDefault(); // Prevent touch scrolling
+  });
 
-  // Pointer move handler
-  function onPointerMove(e) {
-    const p = getPointerPos(e);
-    state.cursor.x = p.x; // Update cursor X
-    state.cursor.y = p.y; // Update cursor Y
-  }
-
-  // Draw the cat at the center of the canvas
+  // Draw the cat at its current position
   function drawCat() {
-    const w = canvas.clientWidth; // Canvas width
-    const h = canvas.clientHeight; // Canvas height
-    const cx = w / 2; // Center X
-    const cy = h / 2 + 10; // Center Y (slightly lowered for balance)
+    const { x, y, scale, direction, isWalking, isLicking, walkCycle } = state.cat;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
-
-    // Draw cat body
     ctx.save();
-    ctx.translate(cx, cy); // Translate to center
-    ctx.scale(1, 1); // Scale (can be adjusted for animations)
+    ctx.translate(x, y);
+    ctx.scale(direction * scale, scale);
 
-    // Body shape
-    ctx.fillStyle = '#f4d9c8';
+    // Body
+    ctx.fillStyle = '#f2c5aa';
     ctx.beginPath();
-    ctx.ellipse(0, 22, 70, 58, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 20, 30, 20, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Head shape
-    ctx.fillStyle = '#f4d9c8';
+    // Head
+    ctx.fillStyle = '#f2c5aa';
     ctx.beginPath();
-    ctx.ellipse(0, -38, 60, 54, 0, 0, Math.PI * 2);
+    ctx.arc(0, -10, 25, 0, Math.PI * 2);
     ctx.fill();
 
     // Eyes
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.ellipse(-20, -50, 16, 10, 0, 0, Math.PI * 2); // Left eye
-    ctx.ellipse(20, -50, 16, 10, 0, 0, Math.PI * 2); // Right eye
+    ctx.arc(-10, -20, 8, 0, Math.PI * 2);
+    ctx.arc(10, -20, 8, 0, Math.PI * 2);
     ctx.fill();
-
     ctx.fillStyle = '#333';
     ctx.beginPath();
-    ctx.arc(-20, -50, 5, 0, Math.PI * 2); // Left pupil
-    ctx.arc(20, -50, 5, 0, Math.PI * 2); // Right pupil
+    ctx.arc(-10, -20, 4, 0, Math.PI * 2);
+    ctx.arc(10, -20, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    // Nose
-    ctx.fillStyle = '#f08b86';
+    // Ears
+    ctx.fillStyle = '#f2c5aa';
     ctx.beginPath();
-    ctx.ellipse(0, -38, 6, 4, 0, 0, Math.PI * 2);
+    ctx.moveTo(-20, -30);
+    ctx.lineTo(-10, -50);
+    ctx.lineTo(0, -30);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(20, -30);
+    ctx.lineTo(10, -50);
+    ctx.lineTo(0, -30);
+    ctx.closePath();
     ctx.fill();
 
-    ctx.restore(); // Restore canvas state
+    // Tail
+    ctx.fillStyle = '#f2c5aa';
+    ctx.beginPath();
+    ctx.ellipse(30, 20, 10, 30, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Mouth (dynamic for licking)
+    ctx.fillStyle = '#e08080';
+    if (isLicking) {
+      ctx.beginPath();
+      ctx.arc(0, 5, 10, 0, Math.PI, true);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(0, 5, 5, 0, Math.PI, true);
+      ctx.fill();
+    }
+
+    // Legs (dynamic for walking)
+    if (isWalking) {
+      const legOffset = Math.sin(walkCycle) * 5;
+      ctx.fillStyle = '#f2c5aa';
+      ctx.fillRect(-20, 30 + legOffset, 10, 20);
+      ctx.fillRect(10, 30 - legOffset, 10, 20);
+    } else {
+      ctx.fillStyle = '#f2c5aa';
+      ctx.fillRect(-20, 30, 10, 20);
+      ctx.fillRect(10, 30, 10, 20);
+    }
+
+    ctx.restore();
+  }
+
+  // Update the cat's state (e.g., walking animation)
+  function update(dt) {
+    const { cat } = state;
+
+    if (cat.isWalking) {
+      cat.walkCycle += dt * 10;
+      cat.x += cat.direction * 100 * dt;
+
+      // Bounce back when hitting canvas edges
+      if (cat.x < 50 || cat.x > canvas.width - 50) {
+        cat.direction *= -1; // Reverse direction
+      }
+    }
   }
 
   // Animation loop
-  function frame() {
-    drawCat(); // Draw the cat
-    requestAnimationFrame(frame); // Queue next frame
-  }
-  frame(); // Start the animation loop
+  let lastTime = performance.now();
+  function frame(ts) {
+    const dt = (ts - lastTime) / 1000;
+    lastTime = ts;
 
-  // Pointer event listeners
-  canvas.addEventListener('mousemove', onPointerMove);
-  canvas.addEventListener('touchmove', onPointerMove, { passive: false });
+    update(dt);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawCat();
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
 })();
 </script>
 </body>
