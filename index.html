@@ -3,37 +3,38 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Cute Cat — Super Interactive</title>
+<title>Interactive Cat Animation</title>
 <style>
-  html,body { 
-    height:100%; margin:0; 
-    display:flex; align-items:center; justify-content:center; 
-    background:#f7f8fb; 
+  html, body {
+    height: 100%; margin: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: #f5f5f5;
+    overflow: hidden;
   }
-  canvas { 
-    background:transparent; 
-    touch-action: none; 
+  canvas {
+    background: transparent;
+    touch-action: none;
   }
-  .ui-hint { 
-    position:fixed; left:12px; bottom:12px; 
-    font-family:system-ui,-apple-system,Segoe UI,Roboto; 
-    color:#555; font-size:14px;
+  .ui-hint {
+    position: fixed; left: 12px; bottom: 12px;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto;
+    color: #555; font-size: 14px;
   }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<div class="ui-hint">👆 Move mouse/finger → cat looks • Tap/click → pet the cat 💖</div>
+<div class="ui-hint">👆 Interact with the cat: Tap to play, Double-tap for fish, Swipe for meow 💖</div>
 
 <script>
 (() => {
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d', { alpha: true });
 
-  // responsive canvas
+  // Responsive canvas
   function resize() {
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
-    const size = Math.min(window.innerWidth, window.innerHeight) * 0.75;
+    const size = Math.min(window.innerWidth, window.innerHeight);
     canvas.width = Math.round(size * DPR);
     canvas.height = Math.round(size * DPR);
     canvas.style.width = Math.round(size) + 'px';
@@ -43,23 +44,24 @@
   window.addEventListener('resize', resize);
   resize();
 
-  // state
+  // State variables
   const state = {
     t: 0,
-    lastBlink: 0,
-    blinkDuration: 140, 
-    blinkInterval: 3000 + Math.random()*2000,
-    isBlinking: false,
-    cursor: { x: canvas.width/2, y: canvas.height/2 },
-    scalePulse: 0,
-    earTwitch: 0,
-    hearts: [] // store heart particles
+    cursor: { x: canvas.width / 2, y: canvas.height / 2 },
+    cat: { x: canvas.width / 2, y: canvas.height / 2, scale: 1, isBlushing: false, isJumping: false },
+    fish: [],
+    hearts: [],
+    ball: { x: canvas.width / 2, y: canvas.height / 2, vx: 2, vy: 3, radius: 15 },
   };
 
-  function now(){ return performance.now(); }
-  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+  function now() {
+    return performance.now();
+  }
+  function clamp(v, a, b) {
+    return Math.max(a, Math.min(b, v));
+  }
 
-  // pointer events
+  // Pointer event handlers
   function getPointerPos(e) {
     const rect = canvas.getBoundingClientRect();
     let clientX, clientY;
@@ -73,233 +75,142 @@
     return { x: (clientX - rect.left), y: (clientY - rect.top) };
   }
 
-  function onPointerMove(e){
+  function onPointerMove(e) {
     const p = getPointerPos(e);
     state.cursor.x = p.x;
     state.cursor.y = p.y;
   }
-  function onPointerDown(e){
-    state.scalePulse = 1.0; // start pet pulse
 
-    // spawn heart
-    const rect = canvas.getBoundingClientRect();
-    state.hearts.push({
-      x: rect.width/2,
-      y: rect.height/2 - 60, // just above cat head
-      size: 18 + Math.random()*6,
-      vy: -0.5 - Math.random()*0.3,
-      life: 1.0 // fades out from 1 → 0
-    });
+  function onPointerDown(e) {
+    if (e.detail === 2) {
+      // Double-tap: Spawn fish
+      for (let i = 0; i < 5; i++) {
+        state.fish.push({
+          x: Math.random() * canvas.width,
+          y: -50,
+          vy: 2 + Math.random() * 2,
+        });
+      }
+    } else {
+      // Single tap: Cat plays
+      state.cat.isJumping = true;
+      setTimeout(() => (state.cat.isJumping = false), 500);
+    }
+  }
+
+  function onPointerSlide(e) {
+    // Swipe: Cat blushes and moves closer
+    state.cat.isBlushing = true;
+    setTimeout(() => (state.cat.isBlushing = false), 1000);
   }
 
   canvas.addEventListener('mousemove', onPointerMove);
-  canvas.addEventListener('touchmove', onPointerMove, {passive:false});
+  canvas.addEventListener('touchmove', onPointerMove, { passive: false });
   canvas.addEventListener('mousedown', onPointerDown);
   canvas.addEventListener('touchstart', onPointerDown);
+  canvas.addEventListener('touchend', onPointerSlide);
 
-  // helper drawing
-  function roundEllipse(ctx, x, y, w, h) {
-    ctx.beginPath();
-    ctx.ellipse(x, y, w, h, 0, 0, Math.PI*2);
-  }
-  function roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    const rx = Math.min(r, w/2), ry = Math.min(r, h/2);
-    ctx.moveTo(x+rx, y);
-    ctx.arcTo(x+w, y, x+w, y+h, rx);
-    ctx.arcTo(x+w, y+h, x, y+h, ry);
-    ctx.arcTo(x, y+h, x, y, rx);
-    ctx.arcTo(x, y, x+w, y, ry);
-    ctx.closePath();
-  }
-
-  function drawEye(ctx, openness = 1, pupilOffsetX=0, pupilOffsetY=0) {
-    const eyeW = 16;
-    const eyeH = 10 * openness;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, eyeW, Math.max(1, eyeH), 0, 0, Math.PI*2);
-    ctx.fill();
-    // pupil
-    ctx.fillStyle = '#2b2b2b';
-    ctx.beginPath();
-    ctx.ellipse(pupilOffsetX, pupilOffsetY, 5, 5, 0, 0, Math.PI*2);
-    ctx.fill();
-    // highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.beginPath();
-    ctx.ellipse(pupilOffsetX-2, pupilOffsetY-2, 1.6, 1.6, 0, 0, Math.PI*2);
-    ctx.fill();
-  }
-
-  // draw heart particle
-  function drawHeart(x, y, size, alpha) {
+  // Helper functions
+  function drawCat() {
+    const { x, y, scale, isBlushing, isJumping } = state.cat;
     ctx.save();
     ctx.translate(x, y);
-    ctx.scale(size/20, size/20);
-    ctx.fillStyle = `rgba(255, 80, 120, ${alpha})`;
-    ctx.beginPath();
-    ctx.moveTo(0, -5);
-    ctx.bezierCurveTo(-8, -15, -20, -5, 0, 15);
-    ctx.bezierCurveTo(20, -5, 8, -15, 0, -5);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  // draw cat
-  function drawCat(cx, cy, scale) {
-    ctx.save();
-    ctx.translate(cx, cy);
     ctx.scale(scale, scale);
 
-    // tail (behind body)
-    ctx.save();
-    const wag = Math.sin(state.t*2.5) * 0.9;
-    ctx.translate(-60, 12);
-    ctx.rotate(wag * 0.2);
+    // Body
     ctx.fillStyle = '#f4d9c8';
-    roundRect(ctx, -6, -6, 80, 18, 10);
+    ctx.beginPath();
+    ctx.ellipse(0, 20, 50, 40, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Tail
+    ctx.save();
+    ctx.translate(-40, 20);
+    ctx.rotate(Math.sin(state.t * 4) * 0.2);
+    ctx.fillStyle = '#f4d9c8';
+    ctx.beginPath();
+    ctx.ellipse(-20, 0, 30, 10, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
-    // body
+    // Head
     ctx.fillStyle = '#f4d9c8';
-    roundEllipse(ctx, 0, 22, 70, 58); ctx.fill();
-    ctx.fillStyle = '#fff4ea';
-    roundEllipse(ctx, 0, 32, 45, 28); ctx.fill();
-
-    // head
-    ctx.save();
-    ctx.translate(0, -38);
-    ctx.fillStyle = '#f4d9c8';
-    roundEllipse(ctx, 0, 0, 60, 54); ctx.fill();
-
-    // ear twitch
-    const twitch = Math.sin(state.earTwitch*20) * Math.exp(-state.earTwitch*3);
-    // left ear
-    ctx.save();
-    ctx.translate(-26, -34);
-    ctx.rotate(-0.3 + twitch*0.2);
     ctx.beginPath();
-    ctx.moveTo(-8, 0); ctx.lineTo(-22, -30); ctx.lineTo(0, -2);
-    ctx.closePath(); ctx.fillStyle = '#f4d9c8'; ctx.fill();
-    ctx.fillStyle = '#ffd6c9';
-    ctx.beginPath(); ctx.moveTo(-6, -2); ctx.lineTo(-16, -20); ctx.lineTo(-2, -4);
-    ctx.closePath(); ctx.fill();
-    ctx.restore();
-
-    // right ear
-    ctx.save();
-    ctx.translate(26, -34);
-    ctx.rotate(0.3 - twitch*0.2);
-    ctx.beginPath();
-    ctx.moveTo(8, 0); ctx.lineTo(22, -30); ctx.lineTo(0, -2);
-    ctx.closePath(); ctx.fillStyle = '#f4d9c8'; ctx.fill();
-    ctx.fillStyle = '#ffd6c9';
-    ctx.beginPath(); ctx.moveTo(6, -2); ctx.lineTo(16, -20); ctx.lineTo(2, -4);
-    ctx.closePath(); ctx.fill();
-    ctx.restore();
-
-    // eyes
-    const eyeY = -4, eyeSpacing = 22, pupilOffsetMax = 6;
-    const rect = canvas.getBoundingClientRect();
-    const dx = ((state.cursor.x - rect.width/2) / (rect.width/2));
-    const dy = ((state.cursor.y - rect.height/2) / (rect.height/2));
-    const pupilDX = clamp(dx, -1, 1) * pupilOffsetMax;
-    const pupilDY = clamp(dy, -0.7, 0.7) * pupilOffsetMax;
-
-    const openness = state.isBlinking ? 0 : 1;
-
-    ctx.save();
-    ctx.translate(-eyeSpacing, eyeY);
-    drawEye(ctx, openness, pupilDX, pupilDY);
-    ctx.restore();
-
-    ctx.save();
-    ctx.translate(eyeSpacing, eyeY);
-    drawEye(ctx, openness, pupilDX, pupilDY);
-    ctx.restore();
-
-    // nose
-    ctx.fillStyle = '#f08b86';
-    ctx.beginPath();
-    ctx.ellipse(0, 6, 6, 4, 0, 0, Math.PI*2);
+    ctx.ellipse(0, -30, 40, 35, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // mouth
-    ctx.strokeStyle = '#b35b58'; ctx.lineWidth = 1.5;
+    // Eyes
+    ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.moveTo(0, 8); ctx.quadraticCurveTo(-8, 12, -16, 14);
-    ctx.moveTo(0, 8); ctx.quadraticCurveTo(8, 12, 16, 14);
-    ctx.stroke();
-
-    // whiskers
-    ctx.strokeStyle = '#bbaaa3'; ctx.lineWidth = 1.4;
+    ctx.ellipse(-15, -40, 10, 20, 0, 0, Math.PI * 2);
+    ctx.ellipse(15, -40, 10, 20, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
     ctx.beginPath();
-    ctx.moveTo(-16, 6); ctx.lineTo(-46, 2);
-    ctx.moveTo(-16, 10); ctx.lineTo(-46, 14);
-    ctx.moveTo(16, 6); ctx.lineTo(46, 2);
-    ctx.moveTo(16, 10); ctx.lineTo(46, 14);
-    ctx.stroke();
+    ctx.arc(-15, -40, 5, 0, Math.PI * 2);
+    ctx.arc(15, -40, 5, 0, Math.PI * 2);
+    ctx.fill();
 
-    // blush
-    ctx.fillStyle = 'rgba(255,120,150,0.18)';
-    roundEllipse(ctx, -22, 12, 12, 8); ctx.fill();
-    roundEllipse(ctx, 22, 12, 12, 8); ctx.fill();
+    // Blush
+    if (isBlushing) {
+      ctx.fillStyle = 'pink';
+      ctx.beginPath();
+      ctx.arc(-25, -30, 8, 0, Math.PI * 2);
+      ctx.arc(25, -30, 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    ctx.restore(); // head
-    ctx.restore(); // whole
+    ctx.restore();
   }
 
-  // loop
+  function drawFish() {
+    state.fish.forEach((fish, index) => {
+      ctx.save();
+      ctx.translate(fish.x, fish.y);
+      ctx.fillStyle = 'orange';
+      ctx.beginPath();
+      ctx.arc(0, 0, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Update position
+      fish.y += fish.vy;
+      if (fish.y > canvas.height) state.fish.splice(index, 1);
+    });
+  }
+
+  function drawBall() {
+    const { x, y, vx, vy, radius } = state.ball;
+    ctx.fillStyle = 'blue';
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Update position
+    state.ball.x += vx;
+    state.ball.y += vy;
+
+    // Bounce
+    if (state.ball.x - radius < 0 || state.ball.x + radius > canvas.width) state.ball.vx *= -1;
+    if (state.ball.y - radius < 0 || state.ball.y + radius > canvas.height) state.ball.vy *= -1;
+  }
+
+  // Animation loop
   let lastTime = performance.now();
   function frame(ts) {
     const dt = ts - lastTime;
     lastTime = ts;
-    state.t += dt/1000;
+    state.t += dt / 1000;
 
-    // blink
-    if (!state.isBlinking && (now() - state.lastBlink > state.blinkInterval)) {
-      state.isBlinking = true;
-      state.lastBlink = now();
-    } else if (state.isBlinking && (now() - state.lastBlink > state.blinkDuration)) {
-      state.isBlinking = false;
-      state.lastBlink = now();
-      state.blinkInterval = 2500 + Math.random()*3000;
-    }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // ear twitch trigger randomly
-    if (Math.random() < 0.002 && state.earTwitch <= 0) {
-      state.earTwitch = 1;
-    }
-    if (state.earTwitch > 0) state.earTwitch -= dt/1000;
-
-    // pet pulse decay
-    if (state.scalePulse > 0) state.scalePulse = Math.max(0, state.scalePulse - dt/300);
-
-    // update hearts
-    state.hearts.forEach(h => {
-      h.y += h.vy * (dt/16);
-      h.life -= dt/2000;
-    });
-    state.hearts = state.hearts.filter(h => h.life > 0);
-
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    const w = canvas.clientWidth, h = canvas.clientHeight;
-    const cx = w/2, cy = h/2 + 10;
-    const baseSize = Math.min(w,h) / 260;
-    const pulse = 1 + 0.06 * Math.sin(state.scalePulse * Math.PI * 2) * state.scalePulse;
-
-    drawCat(cx, cy, baseSize * pulse);
-
-    // draw hearts on top
-    state.hearts.forEach(h => drawHeart(h.x, h.y, h.size, h.life));
+    drawCat();
+    drawFish();
+    drawBall();
 
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-
 })();
 </script>
 </body>
