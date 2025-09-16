@@ -3,213 +3,214 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Interactive Cat Animation</title>
+<title>Tamagotchi Cat</title>
 <style>
   html, body {
     height: 100%; margin: 0;
     display: flex; align-items: center; justify-content: center;
-    background: #f5f5f5;
+    background: #e8f0f7;
     overflow: hidden;
   }
   canvas {
-    background: transparent;
-    touch-action: none;
     display: block;
+    touch-action: none;
   }
   .ui-hint {
-    position: fixed; left: 12px; bottom: 12px;
+    position: fixed;
+    left: 12px;
+    bottom: 12px;
     font-family: system-ui, -apple-system, Segoe UI, Roboto;
-    color: #555; font-size: 14px;
+    color: #555;
+    font-size: 14px;
   }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<div class="ui-hint">👆 Interact with the cat: Tap to play, Double-tap for fish, Swipe for meow 💖</div>
+<div class="ui-hint">👆 Interact with the cat: Watch it roam, double-tap for special actions, or swipe to see it lick the screen!</div>
 
 <script>
 (() => {
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d', { alpha: true });
 
-  // Responsive canvas and cat centering
+  // Responsive canvas
   function resize() {
-    const DPR = Math.min(window.devicePixelRatio || 1, 2); // Limit DPR for performance
-    const size = Math.min(window.innerWidth, window.innerHeight); // Fit canvas to screen size
-    canvas.width = Math.round(size * DPR);
-    canvas.height = Math.round(size * DPR);
-    canvas.style.width = Math.round(size) + 'px';
-    canvas.style.height = Math.round(size) + 'px';
+    const DPR = Math.min(window.devicePixelRatio || 1, 2); // Limit for performance
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    canvas.width = width * DPR;
+    canvas.height = height * DPR;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    state.cat.x = canvas.width / 2; // Center the cat horizontally
-    state.cat.y = canvas.height / 2; // Center the cat vertically
   }
   window.addEventListener('resize', resize);
   resize();
 
   // State variables
   const state = {
-    t: 0,
-    cursor: { x: canvas.width / 2, y: canvas.height / 2 },
-    cat: { x: canvas.width / 2, y: canvas.height / 2, scale: 1, isBlushing: false, isJumping: false },
-    fish: [],
-    hearts: [],
-    ball: { x: canvas.width / 2, y: canvas.height / 2, vx: 2, vy: 3, radius: 15 },
+    cat: {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      scale: 1,
+      isWalking: false,
+      isSitting: false,
+      isLicking: false,
+      direction: 1, // 1 for right, -1 for left
+    },
+    room: {
+      width: canvas.width,
+      height: canvas.height,
+      furniture: {
+        couch: { x: canvas.width / 3, y: canvas.height / 2, width: 200, height: 100 },
+        mat: { x: canvas.width / 2, y: (canvas.height * 2) / 3, radius: 50 },
+      },
+    },
   };
 
-  function now() {
-    return performance.now();
-  }
-  function clamp(v, a, b) {
-    return Math.max(a, Math.min(b, v));
-  }
+  // Event handlers for interactions
+  canvas.addEventListener('mousedown', () => {
+    state.cat.isWalking = !state.cat.isWalking; // Toggle walking on tap
+  });
 
-  // Pointer event handlers
-  function getPointerPos(e) {
-    const rect = canvas.getBoundingClientRect();
-    let clientX, clientY;
-    if (e.touches && e.touches[0]) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      // Double-tap for licking action
+      state.cat.isLicking = true;
+      setTimeout(() => (state.cat.isLicking = false), 1000);
     } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
+      state.cat.isWalking = !state.cat.isWalking; // Toggle walking on single tap
     }
-    return { x: (clientX - rect.left), y: (clientY - rect.top) };
-  }
-
-  function onPointerMove(e) {
-    const p = getPointerPos(e);
-    state.cursor.x = p.x;
-    state.cursor.y = p.y;
-  }
-
-  function onPointerDown(e) {
-    if (e.detail === 2) {
-      // Double-tap: Spawn fish
-      for (let i = 0; i < 5; i++) {
-        state.fish.push({
-          x: Math.random() * canvas.width,
-          y: -50,
-          vy: 2 + Math.random() * 2,
-        });
-      }
-    } else {
-      // Single-tap: Cat plays
-      state.cat.isJumping = true;
-      setTimeout(() => (state.cat.isJumping = false), 500);
-    }
-  }
-
-  function onPointerSlide(e) {
-    // Swipe: Cat blushes and moves closer
-    state.cat.isBlushing = true;
-    setTimeout(() => (state.cat.isBlushing = false), 1000);
-  }
-
-  canvas.addEventListener('mousemove', onPointerMove);
-  canvas.addEventListener('touchmove', onPointerMove, { passive: false });
-  canvas.addEventListener('mousedown', onPointerDown);
-  canvas.addEventListener('touchstart', onPointerDown);
-  canvas.addEventListener('touchend', onPointerSlide);
+  });
 
   // Helper functions
+  function drawRoom() {
+    // Draw background
+    ctx.fillStyle = '#f5f7fa';
+    ctx.fillRect(0, 0, state.room.width, state.room.height);
+
+    // Draw couch
+    const couch = state.room.furniture.couch;
+    ctx.fillStyle = '#d3a8a8';
+    ctx.fillRect(couch.x, couch.y, couch.width, couch.height);
+    ctx.fillStyle = '#c19797';
+    ctx.fillRect(couch.x, couch.y - 20, couch.width, 20); // Backrest
+
+    // Draw mat
+    const mat = state.room.furniture.mat;
+    ctx.fillStyle = '#c4e7c5';
+    ctx.beginPath();
+    ctx.arc(mat.x, mat.y, mat.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   function drawCat() {
-    const { x, y, scale, isBlushing, isJumping } = state.cat;
+    const { x, y, scale, direction, isWalking, isSitting, isLicking } = state.cat;
+
     ctx.save();
     ctx.translate(x, y);
-    ctx.scale(scale, scale);
+    ctx.scale(direction * scale, scale);
 
     // Body
-    ctx.fillStyle = '#f4d9c8';
+    ctx.fillStyle = '#f2c5aa';
     ctx.beginPath();
-    ctx.ellipse(0, 20, 50, 40, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 20, 30, 20, 0, 0, Math.PI * 2);
     ctx.fill();
-
-    // Tail
-    ctx.save();
-    ctx.translate(-40, 20);
-    ctx.rotate(Math.sin(state.t * 4) * 0.2);
-    ctx.fillStyle = '#f4d9c8';
-    ctx.beginPath();
-    ctx.ellipse(-20, 0, 30, 10, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
 
     // Head
-    ctx.fillStyle = '#f4d9c8';
+    ctx.fillStyle = '#f2c5aa';
     ctx.beginPath();
-    ctx.ellipse(0, -30, 40, 35, 0, 0, Math.PI * 2);
+    ctx.arc(0, -10, 25, 0, Math.PI * 2);
     ctx.fill();
 
     // Eyes
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.ellipse(-15, -40, 10, 20, 0, 0, Math.PI * 2);
-    ctx.ellipse(15, -40, 10, 20, 0, 0, Math.PI * 2);
+    ctx.arc(-10, -20, 8, 0, Math.PI * 2);
+    ctx.arc(10, -20, 8, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = '#333';
     ctx.beginPath();
-    ctx.arc(-15, -40, 5, 0, Math.PI * 2);
-    ctx.arc(15, -40, 5, 0, Math.PI * 2);
+    ctx.arc(-10, -20, 4, 0, Math.PI * 2);
+    ctx.arc(10, -20, 4, 0, Math.PI * 2);
     ctx.fill();
 
-    // Blush
-    if (isBlushing) {
-      ctx.fillStyle = 'pink';
+    // Ears
+    ctx.fillStyle = '#f2c5aa';
+    ctx.beginPath();
+    ctx.moveTo(-20, -30);
+    ctx.lineTo(-10, -50);
+    ctx.lineTo(0, -30);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(20, -30);
+    ctx.lineTo(10, -50);
+    ctx.lineTo(0, -30);
+    ctx.closePath();
+    ctx.fill();
+
+    // Tail
+    ctx.fillStyle = '#f2c5aa';
+    ctx.beginPath();
+    ctx.ellipse(40, 20, 10, 30, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Mouth (dynamic for licking)
+    ctx.fillStyle = '#e08080';
+    if (isLicking) {
       ctx.beginPath();
-      ctx.arc(-25, -30, 8, 0, Math.PI * 2);
-      ctx.arc(25, -30, 8, 0, Math.PI * 2);
+      ctx.arc(0, -5, 10, 0, Math.PI, true);
       ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(0, -5, 5, 0, Math.PI, true);
+      ctx.fill();
+    }
+
+    // Legs (dynamic for walking/sitting)
+    if (isWalking) {
+      const legOffset = Math.sin(state.cat.walkCycle) * 5;
+      ctx.fillStyle = '#f2c5aa';
+      ctx.fillRect(-20, 30 + legOffset, 10, 20);
+      ctx.fillRect(10, 30 - legOffset, 10, 20);
+    } else if (isSitting) {
+      ctx.fillStyle = '#f2c5aa';
+      ctx.fillRect(-20, 30, 10, 15);
+      ctx.fillRect(10, 30, 10, 15);
+    } else {
+      ctx.fillStyle = '#f2c5aa';
+      ctx.fillRect(-20, 30, 10, 20);
+      ctx.fillRect(10, 30, 10, 20);
     }
 
     ctx.restore();
   }
 
-  function drawFish() {
-    state.fish.forEach((fish, index) => {
-      ctx.save();
-      ctx.translate(fish.x, fish.y);
-      ctx.fillStyle = 'orange';
-      ctx.beginPath();
-      ctx.arc(0, 0, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+  // Update logic
+  function update(dt) {
+    const { cat, room } = state;
 
-      // Update position
-      fish.y += fish.vy;
-      if (fish.y > canvas.height) state.fish.splice(index, 1);
-    });
-  }
-
-  function drawBall() {
-    const { x, y, vx, vy, radius } = state.ball;
-    ctx.fillStyle = 'blue';
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Update position
-    state.ball.x += vx;
-    state.ball.y += vy;
-
-    // Bounce
-    if (state.ball.x - radius < 0 || state.ball.x + radius > canvas.width) state.ball.vx *= -1;
-    if (state.ball.y - radius < 0 || state.ball.y + radius > canvas.height) state.ball.vy *= -1;
+    if (cat.isWalking) {
+      cat.x += cat.direction * 100 * dt;
+      if (cat.x < 0 || cat.x > room.width) {
+        cat.direction *= -1; // Bounce back on wall collision
+      }
+    }
   }
 
   // Animation loop
   let lastTime = performance.now();
   function frame(ts) {
-    const dt = ts - lastTime;
+    const dt = (ts - lastTime) / 1000;
     lastTime = ts;
-    state.t += dt / 1000;
+
+    update(dt);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    drawRoom();
     drawCat();
-    drawFish();
-    drawBall();
 
     requestAnimationFrame(frame);
   }
