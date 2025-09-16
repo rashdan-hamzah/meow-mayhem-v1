@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Tamagotchi Cat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Tamagotchi Cat for iPhone 13</title>
 <style>
   html, body {
     height: 100%; margin: 0;
@@ -34,19 +34,20 @@
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d', { alpha: true });
 
-  // Responsive canvas
+  // iPhone 13 specific dimensions
+  const IPHONE_13_WIDTH = 390;  // Screen width in CSS pixels
+  const IPHONE_13_HEIGHT = 844; // Screen height in CSS pixels
+  const DPR = 3.0;              // Device Pixel Ratio for iPhone 13
+
+  // Resize canvas for iPhone 13
   function resize() {
-    const DPR = Math.min(window.devicePixelRatio || 1, 2); // Limit for performance
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    canvas.width = width * DPR;
-    canvas.height = height * DPR;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    canvas.width = IPHONE_13_WIDTH * DPR;
+    canvas.height = IPHONE_13_HEIGHT * DPR;
+    canvas.style.width = `${IPHONE_13_WIDTH}px`;
+    canvas.style.height = `${IPHONE_13_HEIGHT}px`;
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   }
-  window.addEventListener('resize', resize);
-  resize();
+  resize(); // Initial resize on load
 
   // State variables
   const state = {
@@ -63,8 +64,8 @@
       width: canvas.width,
       height: canvas.height,
       furniture: {
-        couch: { x: canvas.width / 3, y: canvas.height / 2, width: 200, height: 100 },
-        mat: { x: canvas.width / 2, y: (canvas.height * 2) / 3, radius: 50 },
+        couch: { x: canvas.width / 3, y: canvas.height / 2, width: 200 * DPR, height: 100 * DPR },
+        mat: { x: canvas.width / 2, y: (canvas.height * 2) / 3, radius: 50 * DPR },
       },
     },
   };
@@ -95,7 +96,7 @@
     ctx.fillStyle = '#d3a8a8';
     ctx.fillRect(couch.x, couch.y, couch.width, couch.height);
     ctx.fillStyle = '#c19797';
-    ctx.fillRect(couch.x, couch.y - 20, couch.width, 20); // Backrest
+    ctx.fillRect(couch.x, couch.y - 20 * DPR, couch.width, 20 * DPR); // Backrest
 
     // Draw mat
     const mat = state.room.furniture.mat;
