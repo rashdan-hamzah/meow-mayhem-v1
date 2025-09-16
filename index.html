@@ -34,20 +34,27 @@
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d', { alpha: true });
 
-  // iPhone 13 specific dimensions
-  const IPHONE_13_WIDTH = 390;  // Screen width in CSS pixels
-  const IPHONE_13_HEIGHT = 844; // Screen height in CSS pixels
-  const DPR = 3.0;              // Device Pixel Ratio for iPhone 13
-
-  // Resize canvas for iPhone 13
+  // Resize canvas dynamically for iPhone 13 or other devices
   function resize() {
-    canvas.width = IPHONE_13_WIDTH * DPR;
-    canvas.height = IPHONE_13_HEIGHT * DPR;
-    canvas.style.width = `${IPHONE_13_WIDTH}px`;
-    canvas.style.height = `${IPHONE_13_HEIGHT}px`;
+    const DPR = window.devicePixelRatio || 1; // Use actual device DPR
+    const width = window.innerWidth; // Dynamic width
+    const height = window.innerHeight; // Dynamic height
+
+    canvas.width = width * DPR;
+    canvas.height = height * DPR;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    // Update room and cat positions to stay centered
+    state.room.width = canvas.width;
+    state.room.height = canvas.height;
+    state.cat.x = canvas.width / 2;
+    state.cat.y = canvas.height / 2;
   }
-  resize(); // Initial resize on load
+  resize();
+  window.addEventListener('resize', resize);
 
   // State variables
   const state = {
@@ -59,13 +66,14 @@
       isSitting: false,
       isLicking: false,
       direction: 1, // 1 for right, -1 for left
+      walkCycle: 0,
     },
     room: {
       width: canvas.width,
       height: canvas.height,
       furniture: {
-        couch: { x: canvas.width / 3, y: canvas.height / 2, width: 200 * DPR, height: 100 * DPR },
-        mat: { x: canvas.width / 2, y: (canvas.height * 2) / 3, radius: 50 * DPR },
+        couch: { x: canvas.width / 3, y: canvas.height / 2, width: 200, height: 100 },
+        mat: { x: canvas.width / 2, y: (canvas.height * 2) / 3, radius: 50 },
       },
     },
   };
@@ -83,6 +91,7 @@
     } else {
       state.cat.isWalking = !state.cat.isWalking; // Toggle walking on single tap
     }
+    e.preventDefault(); // Prevent touch scrolling
   });
 
   // Helper functions
@@ -96,7 +105,7 @@
     ctx.fillStyle = '#d3a8a8';
     ctx.fillRect(couch.x, couch.y, couch.width, couch.height);
     ctx.fillStyle = '#c19797';
-    ctx.fillRect(couch.x, couch.y - 20 * DPR, couch.width, 20 * DPR); // Backrest
+    ctx.fillRect(couch.x, couch.y - 20, couch.width, 20); // Backrest
 
     // Draw mat
     const mat = state.room.furniture.mat;
@@ -107,7 +116,7 @@
   }
 
   function drawCat() {
-    const { x, y, scale, direction, isWalking, isSitting, isLicking } = state.cat;
+    const { x, y, scale, direction, isWalking, isSitting, isLicking, walkCycle } = state.cat;
 
     ctx.save();
     ctx.translate(x, y);
@@ -172,7 +181,7 @@
 
     // Legs (dynamic for walking/sitting)
     if (isWalking) {
-      const legOffset = Math.sin(state.cat.walkCycle) * 5;
+      const legOffset = Math.sin(walkCycle) * 5;
       ctx.fillStyle = '#f2c5aa';
       ctx.fillRect(-20, 30 + legOffset, 10, 20);
       ctx.fillRect(10, 30 - legOffset, 10, 20);
@@ -194,6 +203,7 @@
     const { cat, room } = state;
 
     if (cat.isWalking) {
+      cat.walkCycle += dt * 10;
       cat.x += cat.direction * 100 * dt;
       if (cat.x < 0 || cat.x > room.width) {
         cat.direction *= -1; // Bounce back on wall collision
