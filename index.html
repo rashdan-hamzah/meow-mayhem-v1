@@ -1,204 +1,679 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Tamagotchi Cat</title>
-<style>
-  html, body {
-    height: 100%; margin: 0;
-    display: flex; align-items: center; justify-content: center;
-    background: #e8f0f7;
-    overflow: hidden;
-  }
-  canvas {
-    display: block;
-    touch-action: none;
-  }
-  .ui-hint {
-    position: fixed;
-    left: 12px;
-    bottom: 12px;
-    font-family: system-ui, -apple-system, Segoe UI, Roboto;
-    color: #555;
-    font-size: 14px;
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>Tamagotchi 2D Cat</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      background: #e6f7ff;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    h1 {
+      text-align: center;
+      margin: 12px 0 2px 0;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #3a3a3a;
+      text-shadow: 1px 1px 0 #fff;
+    }
+    #game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 540px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 15px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+      padding-bottom: 18px;
+    }
+    #gameCanvas {
+      background: linear-gradient(#cceeff, #b2e0f7 70%, #8fd6e7 100%);
+      border: 2.5px solid #3a3a3a;
+      border-radius: 14px;
+      margin-top: 10px;
+      display: block;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      transition: background 0.6s;
+    }
+    #stats {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin: 10px 0 0 0;
+      font-size: 1.08em;
+      font-weight: 500;
+      color: #284c5c;
+      letter-spacing: 1px;
+    }
+    .stat-bar {
+      width: 90px;
+      height: 10px;
+      border-radius: 5px;
+      background: #e0e0e0;
+      margin: 0 0 0 6px;
+      display: inline-block;
+      vertical-align: middle;
+      overflow: hidden;
+      position: relative;
+    }
+    .bar-inner {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.3s;
+      position: absolute;
+      left: 0; top:0;
+    }
+    .hunger-bar { background: linear-gradient(90deg, #fff07b, #e4a700); }
+    .happiness-bar { background: linear-gradient(90deg, #88e2a4, #22b573); }
+    .energy-bar { background: linear-gradient(90deg, #a8d1ff, #4386e0); }
+    #controls {
+      margin-top: 10px;
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    #controls button {
+      font-size: 1.04em;
+      border: none;
+      border-radius: 8px;
+      background: #ffe0b2;
+      color: #564200;
+      padding: 8px 18px;
+      cursor: pointer;
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      margin-top: 4px;
+      transition: background 0.2s, color 0.2s;
+      outline: none;
+    }
+    #controls button:hover, #controls button:focus {
+      background: #ffd180;
+      color: #c15800;
+    }
+    #message {
+      min-height: 25px;
+      text-align: center;
+      font-size: 1.08em;
+      margin: 10px 0 0 0;
+      color: #4282a7;
+      font-weight: 600;
+      letter-spacing: 1px;
+      transition: color 0.3s;
+    }
+    @media (max-width: 600px) {
+      #gameCanvas { width: 98vw; height: 44vw; max-width: 99vw; }
+      #game-container { max-width: 99vw; }
+      .stat-bar { width: 60px; }
+    }
+  </style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<div class="ui-hint">👆 Interact with the cat: Tap to make it walk, double-tap for special actions!</div>
+  <h1>Tamagotchi Cat</h1>
+  <div id="game-container">
+    <canvas id="gameCanvas" width="480" height="270"></canvas>
+    <div id="stats">
+      <span>
+        Hunger
+        <span class="stat-bar"><span class="bar-inner hunger-bar" id="hunger-bar"></span></span>
+      </span>
+      <span>
+        Happiness
+        <span class="stat-bar"><span class="bar-inner happiness-bar" id="happiness-bar"></span></span>
+      </span>
+      <span>
+        Energy
+        <span class="stat-bar"><span class="bar-inner energy-bar" id="energy-bar"></span></span>
+      </span>
+    </div>
+    <div id="controls">
+      <button id="feedBtn">🍣 Feed</button>
+      <button id="playBtn">🧶 Play</button>
+      <button id="sleepBtn">😴 Sleep</button>
+      <button id="petBtn">🐾 Pet</button>
+      <button id="cleanBtn">🧼 Clean</button>
+    </div>
+    <div id="message"></div>
+  </div>
+  <script>
+    // --- GAME CONSTANTS ---
+    const CANVAS = document.getElementById('gameCanvas');
+    const CTX = CANVAS.getContext('2d');
 
-<script>
-(() => {
-  const canvas = document.getElementById('c');
-  const ctx = canvas.getContext('2d', { alpha: true });
+    // Cat Sprite Sheet (pixel art, base64 PNG, 4 frames per action, 5 rows: idle, walk, eat, play, sleep)
+    // For demo, we use procedural drawing.
+    // If you want a real sprite sheet, swap out the drawCat function.
 
-  // Resize canvas and center the cat dynamically
-  function resize() {
-    const DPR = window.devicePixelRatio || 1; // Device Pixel Ratio
-    const width = window.innerWidth; // Viewport width
-    const height = window.innerHeight; // Viewport height
+    // Cat Data
+    const CAT = {
+      x: CANVAS.width / 2,
+      y: CANVAS.height - 70,
+      vx: 0,
+      vy: 0,
+      width: 48,
+      height: 48,
+      facing: 1, // 1 = right, -1 = left
+      action: 'idle', // idle, walk, eat, play, sleep, pet, clean
+      frame: 0,
+      frameTick: 0,
+      dirty: false,
+      isSleeping: false,
+      mood: 'normal', // normal, happy, sad, sick, dirty
+    };
 
-    canvas.width = width * DPR; // Canvas width in device pixels
-    canvas.height = height * DPR; // Canvas height in device pixels
-    canvas.style.width = `${width}px`; // CSS width
-    canvas.style.height = `${height}px`; // CSS height
+    // Tamagotchi Stats
+    const STATS = {
+      hunger: 100,     // 0-100
+      happiness: 100,  // 0-100
+      energy: 100,     // 0-100
+      cleanliness: 100 // 0-100
+    };
 
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); // Adjust the scaling
+    // Time & Progress
+    let lastTick = performance.now();
+    let actionQueue = [];
+    let messageTimeout = null;
 
-    // Re-center the cat
-    state.cat.x = canvas.width / 2;
-    state.cat.y = canvas.height / 2;
-  }
+    // Controls State
+    let keys = { left: false, right: false };
 
-  // Initial resize on load
-  resize();
-  window.addEventListener('resize', resize);
-
-  // State variables for the cat and canvas
-  const state = {
-    cat: {
-      x: canvas.width / 2,
-      y: canvas.height / 2,
-      scale: 1,
-      isWalking: false,
-      isLicking: false,
-      direction: 1, // 1 = right, -1 = left
-      walkCycle: 0,
-    },
-    room: {
-      width: canvas.width,
-      height: canvas.height,
-    },
-  };
-
-  // Event listeners for user interactions
-  canvas.addEventListener('mousedown', () => {
-    state.cat.isWalking = !state.cat.isWalking; // Toggle walking
-  });
-
-  canvas.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 2) {
-      // Double-tap for licking
-      state.cat.isLicking = true;
-      setTimeout(() => (state.cat.isLicking = false), 1000);
-    } else {
-      state.cat.isWalking = !state.cat.isWalking; // Toggle walking
-    }
-    e.preventDefault(); // Prevent touch scrolling
-  });
-
-  // Draw the cat at its current position
-  function drawCat() {
-    const { x, y, scale, direction, isWalking, isLicking, walkCycle } = state.cat;
-
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(direction * scale, scale);
-
-    // Body
-    ctx.fillStyle = '#f2c5aa';
-    ctx.beginPath();
-    ctx.ellipse(0, 20, 30, 20, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Head
-    ctx.fillStyle = '#f2c5aa';
-    ctx.beginPath();
-    ctx.arc(0, -10, 25, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Eyes
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(-10, -20, 8, 0, Math.PI * 2);
-    ctx.arc(10, -20, 8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#333';
-    ctx.beginPath();
-    ctx.arc(-10, -20, 4, 0, Math.PI * 2);
-    ctx.arc(10, -20, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Ears
-    ctx.fillStyle = '#f2c5aa';
-    ctx.beginPath();
-    ctx.moveTo(-20, -30);
-    ctx.lineTo(-10, -50);
-    ctx.lineTo(0, -30);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(20, -30);
-    ctx.lineTo(10, -50);
-    ctx.lineTo(0, -30);
-    ctx.closePath();
-    ctx.fill();
-
-    // Tail
-    ctx.fillStyle = '#f2c5aa';
-    ctx.beginPath();
-    ctx.ellipse(30, 20, 10, 30, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Mouth (dynamic for licking)
-    ctx.fillStyle = '#e08080';
-    if (isLicking) {
-      ctx.beginPath();
-      ctx.arc(0, 5, 10, 0, Math.PI, true);
-      ctx.fill();
-    } else {
-      ctx.beginPath();
-      ctx.arc(0, 5, 5, 0, Math.PI, true);
-      ctx.fill();
+    // --- UI UPDATES ---
+    function updateStatsUI() {
+      document.getElementById('hunger-bar').style.width = `${STATS.hunger}%`;
+      document.getElementById('happiness-bar').style.width = `${STATS.happiness}%`;
+      document.getElementById('energy-bar').style.width = `${STATS.energy}%`;
     }
 
-    // Legs (dynamic for walking)
-    if (isWalking) {
-      const legOffset = Math.sin(walkCycle) * 5;
-      ctx.fillStyle = '#f2c5aa';
-      ctx.fillRect(-20, 30 + legOffset, 10, 20);
-      ctx.fillRect(10, 30 - legOffset, 10, 20);
-    } else {
-      ctx.fillStyle = '#f2c5aa';
-      ctx.fillRect(-20, 30, 10, 20);
-      ctx.fillRect(10, 30, 10, 20);
-    }
-
-    ctx.restore();
-  }
-
-  // Update the cat's state (e.g., walking animation)
-  function update(dt) {
-    const { cat } = state;
-
-    if (cat.isWalking) {
-      cat.walkCycle += dt * 10;
-      cat.x += cat.direction * 100 * dt;
-
-      // Bounce back when hitting canvas edges
-      if (cat.x < 50 || cat.x > canvas.width - 50) {
-        cat.direction *= -1; // Reverse direction
+    function displayMessage(msg, color = "#4282a7", duration = 1500) {
+      const el = document.getElementById('message');
+      el.textContent = msg;
+      el.style.color = color;
+      if (messageTimeout) clearTimeout(messageTimeout);
+      if (duration > 0) {
+        messageTimeout = setTimeout(() => { el.textContent = ""; }, duration);
       }
     }
-  }
 
-  // Animation loop
-  let lastTime = performance.now();
-  function frame(ts) {
-    const dt = (ts - lastTime) / 1000;
-    lastTime = ts;
+    // --- CAT ACTIONS ---
+    function queueAction(action, duration = 1200) {
+      if (CAT.isSleeping && action !== 'sleep') {
+        displayMessage('Let me sleep...');
+        return;
+      }
+      actionQueue.push({ action, duration, start: performance.now() });
+    }
 
-    update(dt);
+    function processActionQueue(now) {
+      if (actionQueue.length === 0) {
+        CAT.action = (CAT.vx !== 0) ? 'walk' : 'idle';
+        return;
+      }
+      const current = actionQueue[0];
+      CAT.action = current.action;
+      if (now - current.start > current.duration) {
+        // Finish action
+        actionQueue.shift();
+        if (current.action === 'eat') {
+          STATS.hunger = Math.min(100, STATS.hunger + 20);
+          STATS.energy = Math.min(100, STATS.energy + 7);
+          displayMessage("Yum! 🍣", "#e4a700");
+        }
+        else if (current.action === 'play') {
+          STATS.happiness = Math.min(100, STATS.happiness + 18);
+          STATS.energy = Math.max(0, STATS.energy - 12);
+          displayMessage("So much fun! 🧶", "#22b573");
+        }
+        else if (current.action === 'pet') {
+          STATS.happiness = Math.min(100, STATS.happiness + 8);
+          displayMessage("Purr purr~ 🐾", "#22b573");
+        }
+        else if (current.action === 'clean') {
+          CAT.dirty = false;
+          STATS.cleanliness = 100;
+          displayMessage("All clean! 🧼", "#4386e0");
+        }
+        else if (current.action === 'sleep') {
+          CAT.isSleeping = false;
+          STATS.energy = Math.min(100, STATS.energy + 45);
+          displayMessage("Refreshed! ☀️", "#4386e0");
+        }
+      }
+    }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawCat();
+    function tryToSleep() {
+      if (CAT.isSleeping) {
+        displayMessage("Already sleeping...");
+        return;
+      }
+      if (STATS.energy >= 90) {
+        displayMessage("Not sleepy right now.");
+        return;
+      }
+      CAT.isSleeping = true;
+      queueAction('sleep', 3200);
+      displayMessage("Zzz... 😴", "#4386e0", 2800);
+    }
 
-    requestAnimationFrame(frame);
-  }
-  requestAnimationFrame(frame);
-})();
-</script>
+    // --- GAME LOOP ---
+    function gameTick(now) {
+      let dt = now - lastTick;
+      lastTick = now;
+
+      // Gradually degrade stats
+      if (!CAT.isSleeping) {
+        if (now % 5000 < 18) STATS.hunger = Math.max(0, STATS.hunger - 1);
+        if (now % 4400 < 18) STATS.happiness = Math.max(0, STATS.happiness - 1);
+        if (now % 6000 < 18) STATS.energy = Math.max(0, STATS.energy - 1);
+        if (now % 9000 < 18) STATS.cleanliness = Math.max(0, STATS.cleanliness - 1);
+        // Cat gets dirty
+        if (STATS.cleanliness <= 20 && !CAT.dirty) {
+          CAT.dirty = true;
+          displayMessage("I'm dirty! 🧼", "#c15800", 2000);
+        }
+      }
+
+      // Mood
+      if (STATS.hunger < 25 || STATS.happiness < 25 || STATS.energy < 25) {
+        CAT.mood = 'sad';
+      } else if (CAT.dirty) {
+        CAT.mood = 'dirty';
+      } else if (STATS.hunger > 70 && STATS.happiness > 70 && STATS.energy > 70) {
+        CAT.mood = 'happy';
+      } else {
+        CAT.mood = 'normal';
+      }
+
+      // Death check (not permanent, just faint)
+      if (STATS.hunger === 0 || STATS.energy === 0) {
+        CAT.action = 'idle';
+        displayMessage("I'm not well... 😿", "#b71c1c", 2500);
+        STATS.happiness = Math.max(0, STATS.happiness - 3);
+        if (STATS.hunger < 10) STATS.energy = Math.max(0, STATS.energy - 1);
+        // Cannot move or interact
+        actionQueue = [];
+        CAT.vx = 0;
+        updateStatsUI();
+        requestAnimationFrame(gameTick);
+        return;
+      }
+
+      // Cat movement (if not doing a special action)
+      if (actionQueue.length === 0 && !CAT.isSleeping) {
+        if (keys.left) {
+          CAT.vx = -2.1;
+          CAT.facing = -1;
+        } else if (keys.right) {
+          CAT.vx = 2.1;
+          CAT.facing = 1;
+        } else {
+          CAT.vx = 0;
+        }
+      } else {
+        CAT.vx = 0;
+      }
+
+      // Position update
+      CAT.x += CAT.vx;
+      CAT.x = Math.max(10, Math.min(CANVAS.width - CAT.width - 10, CAT.x));
+
+      // Animation
+      CAT.frameTick++;
+      if (CAT.vx !== 0 || CAT.action !== 'idle') {
+        if (CAT.frameTick % 6 === 0) CAT.frame = (CAT.frame + 1) % 4;
+      } else {
+        if (CAT.frameTick % 18 === 0) CAT.frame = (CAT.frame + 1) % 2; // blinking
+      }
+
+      // Process action queue
+      processActionQueue(now);
+
+      // Draw everything
+      drawScene();
+
+      // UI
+      updateStatsUI();
+
+      requestAnimationFrame(gameTick);
+    }
+
+    // --- DRAW ---
+    function drawScene() {
+      // Background
+      CTX.clearRect(0, 0, CANVAS.width, CANVAS.height);
+      // Floor
+      CTX.fillStyle = "#b2e0b2";
+      CTX.fillRect(0, CANVAS.height - 22, CANVAS.width, 22);
+      // Shadow
+      CTX.save();
+      CTX.globalAlpha = 0.19;
+      CTX.beginPath();
+      CTX.ellipse(CAT.x + CAT.width / 2, CAT.y + CAT.height - 5, 24, 7, 0, 0, 2 * Math.PI);
+      CTX.fillStyle = "#333";
+      CTX.fill();
+      CTX.restore();
+
+      // Cat
+      drawCat(CAT.x, CAT.y, CAT.action, CAT.facing, CAT.frame, CAT.mood, CAT.dirty);
+
+      // Bowl/Food (if eating)
+      if (CAT.action === 'eat') {
+        drawBowl(CAT.x + CAT.width/2, CAT.y + CAT.height - 8);
+      }
+      // Yarn ball (if playing)
+      if (CAT.action === 'play') {
+        drawYarn(CAT.x + CAT.width/2 + 24*CAT.facing, CAT.y + CAT.height - 10);
+      }
+      // Zzz (if sleeping)
+      if (CAT.isSleeping) {
+        drawZzz(CAT.x + 34, CAT.y + 2);
+      }
+      // Smell cloud (dirty)
+      if (CAT.dirty) {
+        drawSmell(CAT.x + CAT.width/2, CAT.y + 6 + (CAT.frame%2)*3);
+      }
+    }
+
+    // --- CAT DRAWING ---
+    function drawCat(x, y, action, facing, frame, mood, dirty) {
+      // Body
+      CTX.save();
+      CTX.translate(x + CAT.width/2, 0);
+      if (facing === -1) CTX.scale(-1, 1);
+      CTX.translate(-x - CAT.width/2, 0);
+
+      // Tail
+      CTX.strokeStyle = (dirty) ? "#a08f6a" : "#a4876c";
+      CTX.lineWidth = 6;
+      CTX.beginPath();
+      let tailWag = 6 * Math.sin(frame/2);
+      CTX.moveTo(x + CAT.width - 7, y + CAT.height - 18);
+      CTX.quadraticCurveTo(x + CAT.width + 16 + tailWag, y + CAT.height - 34, x + CAT.width - 2, y + CAT.height - 42);
+      CTX.stroke();
+
+      // Body
+      CTX.fillStyle = (dirty) ? "#d1bc9e" : "#f8eacb";
+      CTX.beginPath();
+      CTX.ellipse(x + CAT.width/2, y + 30, 22, 19, 0, 0, 2*Math.PI);
+      CTX.fill();
+
+      // Legs/walking
+      for (let i=0;i<2;i++) {
+        let legY = y + 44 + (action === 'walk' ? (frame%2===i ? 6 : 0) : 0);
+        CTX.fillStyle = (dirty) ? "#cfb681" : "#fbe1ac";
+        CTX.fillRect(x + 10 + i*18, legY, 8, 10);
+      }
+
+      // Head
+      CTX.save();
+      // Head tilt (if happy/pet/sleep)
+      let headAngle = 0;
+      if (action === 'pet' || mood === 'happy') headAngle = -0.16;
+      if (action === 'sleep') headAngle = 0.13;
+      CTX.translate(x + 24, y + 8);
+      CTX.rotate(headAngle);
+      CTX.translate(-x - 24, -y - 8);
+
+      // Ears
+      CTX.beginPath();
+      CTX.moveTo(x + 7, y + 12);
+      CTX.lineTo(x + 16, y - 7);
+      CTX.lineTo(x + 25, y + 12);
+      CTX.fillStyle = (dirty) ? "#c7b48e" : "#e9d8a1";
+      CTX.fill();
+      CTX.beginPath();
+      CTX.moveTo(x + 41, y + 12);
+      CTX.lineTo(x + 32, y - 7);
+      CTX.lineTo(x + 25, y + 12);
+      CTX.fill();
+
+      // Face
+      CTX.beginPath();
+      CTX.ellipse(x + 24, y + 16, 19, 15, 0, 0, 2*Math.PI);
+      CTX.fillStyle = (dirty) ? "#e9d8a1" : "#fffbe0";
+      CTX.fill();
+      // Cheeks
+      if (action === 'pet' || mood === 'happy') {
+        CTX.beginPath();
+        CTX.arc(x + 13, y + 25, 4, 0, 2*Math.PI);
+        CTX.arc(x + 35, y + 25, 4, 0, 2*Math.PI);
+        CTX.fillStyle = "#ffb7c1";
+        CTX.globalAlpha = 0.4 + 0.35*Math.abs(Math.sin(frame/1.5));
+        CTX.fill();
+        CTX.globalAlpha = 1.0;
+      }
+      // Eyes
+      CTX.fillStyle = "#222";
+      if (action === 'sleep' || CAT.isSleeping) {
+        CTX.beginPath();
+        CTX.arc(x + 16, y + 18, 4, Math.PI*0.2, Math.PI*0.8, false);
+        CTX.arc(x + 32, y + 18, 4, Math.PI*0.2, Math.PI*0.8, false);
+        CTX.strokeStyle = "#444";
+        CTX.lineWidth = 2;
+        CTX.stroke();
+      } else if (action === 'pet' || mood === 'happy') {
+        CTX.beginPath();
+        CTX.arc(x + 16, y + 18, 3.6, 0, 2 * Math.PI);
+        CTX.arc(x + 32, y + 18, 3.6, 0, 2 * Math.PI);
+        CTX.fill();
+        CTX.fillStyle = "#fff";
+        CTX.beginPath();
+        CTX.arc(x + 17.6, y + 17, 1.1, 0, 2 * Math.PI);
+        CTX.arc(x + 33.6, y + 17, 1.1, 0, 2 * Math.PI);
+        CTX.fill();
+      } else if (mood === 'sad') {
+        CTX.beginPath();
+        CTX.arc(x + 16, y + 20, 2.6, Math.PI*1.2, 0, false);
+        CTX.arc(x + 32, y + 20, 2.6, Math.PI, Math.PI*1.8, false);
+        CTX.strokeStyle = "#444";
+        CTX.lineWidth = 2;
+        CTX.stroke();
+      } else {
+        // normal (blinking)
+        let blink = (frame === 1 && action === 'idle') ? 0.5 : 3.6;
+        CTX.beginPath();
+        CTX.arc(x + 16, y + 18, blink, 0, 2 * Math.PI);
+        CTX.arc(x + 32, y + 18, blink, 0, 2 * Math.PI);
+        CTX.fill();
+        CTX.fillStyle = "#fff";
+        if (blink > 1.5) {
+          CTX.beginPath();
+          CTX.arc(x + 17.6, y + 17, 1.1, 0, 2 * Math.PI);
+          CTX.arc(x + 33.6, y + 17, 1.1, 0, 2 * Math.PI);
+          CTX.fill();
+        }
+      }
+      // Nose
+      CTX.beginPath();
+      CTX.moveTo(x + 24, y + 22.5);
+      CTX.lineTo(x + 22.5, y + 24);
+      CTX.lineTo(x + 25.5, y + 24);
+      CTX.closePath();
+      CTX.fillStyle = "#e38b5d";
+      CTX.fill();
+
+      // Mouth
+      CTX.beginPath();
+      if (action === 'eat') {
+        CTX.arc(x + 24, y + 27, 3, Math.PI*0.1, Math.PI*1.2, false);
+      } else if (action === 'pet' || mood === 'happy') {
+        CTX.arc(x + 24, y + 27, 3, 0, Math.PI, false);
+      } else if (mood === 'sad') {
+        CTX.arc(x + 24, y + 30, 3, Math.PI, 2*Math.PI, true);
+      } else if (action === 'sleep') {
+        // do nothing
+      } else {
+        CTX.arc(x + 24, y + 28.5, 2.3, 0, Math.PI, false);
+      }
+      CTX.strokeStyle = "#a3622a";
+      CTX.lineWidth = 1.2;
+      CTX.stroke();
+
+      // Whiskers
+      CTX.strokeStyle = "#bba26c";
+      for (let i=-1;i<=1;i+=2) {
+        CTX.beginPath();
+        CTX.moveTo(x + 24 + i*2, y + 23);
+        CTX.lineTo(x + 24 + i*12, y + 20 + i*3);
+        CTX.moveTo(x + 24 + i*2, y + 26);
+        CTX.lineTo(x + 24 + i*12, y + 28 - i*2);
+        CTX.stroke();
+      }
+
+      CTX.restore(); // head tilt
+      CTX.restore(); // facing
+    }
+
+    function drawBowl(cx, cy) {
+      CTX.save();
+      CTX.translate(cx, cy);
+      CTX.fillStyle = "#ffe0b2";
+      CTX.beginPath();
+      CTX.ellipse(0, 0, 18, 7, 0, 0, 2*Math.PI);
+      CTX.fill();
+      CTX.strokeStyle = "#e4a700";
+      CTX.stroke();
+      // Food
+      CTX.beginPath();
+      CTX.ellipse(0, -2, 7, 3, 0, 0, 2*Math.PI);
+      CTX.fillStyle = "#e4a700";
+      CTX.globalAlpha = 0.6;
+      CTX.fill();
+      CTX.globalAlpha = 1;
+      CTX.restore();
+    }
+    function drawYarn(cx, cy) {
+      CTX.save();
+      CTX.translate(cx, cy);
+      CTX.beginPath();
+      CTX.arc(0, 0, 10, 0, 2*Math.PI);
+      CTX.fillStyle = "#f08080";
+      CTX.fill();
+      CTX.strokeStyle = "#b23a48";
+      CTX.stroke();
+      // Yarn lines
+      for (let i=0;i<4;i++) {
+        CTX.beginPath();
+        CTX.arc(0, 0, 7, i*0.7, i*0.7+1, false);
+        CTX.stroke();
+      }
+      // String
+      CTX.beginPath();
+      CTX.moveTo(6, 5);
+      CTX.bezierCurveTo(13, 13, -18, 20, 12, 25);
+      CTX.strokeStyle = "#b23a48";
+      CTX.stroke();
+      CTX.restore();
+    }
+    function drawZzz(x, y) {
+      CTX.save();
+      CTX.font = "bold 20px Arial";
+      CTX.fillStyle = "#4386e0";
+      CTX.globalAlpha = 0.7;
+      CTX.fillText("Z", x, y);
+      CTX.font = "bold 16px Arial";
+      CTX.fillText("z", x + 12, y - 13);
+      CTX.font = "bold 14px Arial";
+      CTX.fillText("z", x + 22, y - 24);
+      CTX.globalAlpha = 1.0;
+      CTX.restore();
+    }
+    function drawSmell(x, y) {
+      CTX.save();
+      CTX.globalAlpha = 0.17 + 0.06 * Math.sin(CAT.frame / 2);
+      CTX.strokeStyle = "#bfae6a";
+      for (let i=-1;i<=1;i+=2) {
+        CTX.beginPath();
+        CTX.moveTo(x + i*10, y + 4);
+        CTX.bezierCurveTo(x + i*13, y - 6, x + i*7, y - 17, x + i*3, y - 32);
+        CTX.lineWidth = 4;
+        CTX.stroke();
+      }
+      CTX.globalAlpha = 1.0;
+      CTX.restore();
+    }
+
+    // --- CONTROLS ---
+    // Keyboard
+    window.addEventListener('keydown', e => {
+      if (CAT.isSleeping) return;
+      if (e.key === 'ArrowLeft') keys.left = true;
+      if (e.key === 'ArrowRight') keys.right = true;
+    });
+    window.addEventListener('keyup', e => {
+      if (e.key === 'ArrowLeft') keys.left = false;
+      if (e.key === 'ArrowRight') keys.right = false;
+    });
+    // Touch controls (swipe left/right)
+    let touchStartX = 0;
+    CANVAS.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) touchStartX = e.touches[0].clientX;
+    });
+    CANVAS.addEventListener('touchmove', e => {
+      if (e.touches.length === 1) {
+        let dx = e.touches[0].clientX - touchStartX;
+        if (dx < -10) keys.left = true;
+        if (dx > 10) keys.right = true;
+      }
+    });
+    CANVAS.addEventListener('touchend', e => {
+      keys.left = keys.right = false;
+    });
+
+    // Button controls
+    document.getElementById('feedBtn').onclick = () => {
+      if (STATS.hunger > 90) {
+        displayMessage("I'm full!");
+        return;
+      }
+      if (CAT.dirty && Math.random() > 0.7) {
+        displayMessage("I need a bath before eating!");
+        return;
+      }
+      queueAction('eat', 1500);
+    };
+    document.getElementById('playBtn').onclick = () => {
+      if (STATS.energy < 20) {
+        displayMessage("Too tired to play.");
+        return;
+      }
+      queueAction('play', 1200);
+    };
+    document.getElementById('petBtn').onclick = () => {
+      queueAction('pet', 900);
+    };
+    document.getElementById('sleepBtn').onclick = () => {
+      tryToSleep();
+    };
+    document.getElementById('cleanBtn').onclick = () => {
+      if (!CAT.dirty) {
+        displayMessage("Already clean!");
+        return;
+      }
+      queueAction('clean', 1600);
+    };
+
+    // --- INIT ---
+    updateStatsUI();
+    drawScene();
+    requestAnimationFrame(gameTick);
+
+    // --- PERSISTENCE (Optional) ---
+    // Uncomment for localStorage save/load
+    /*
+    function saveGame() {
+      localStorage.setItem('tamaCatStats', JSON.stringify(STATS));
+    }
+    function loadGame() {
+      let s = localStorage.getItem('tamaCatStats');
+      if (s) Object.assign(STATS, JSON.parse(s));
+    }
+    window.addEventListener('beforeunload', saveGame);
+    loadGame();
+    */
+
+  </script>
 </body>
 </html>
